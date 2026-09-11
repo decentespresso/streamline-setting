@@ -1,6 +1,6 @@
 /**
  * Third-party libraries the settings pages load on demand, served by the plugin's
- * own routes. REA has no static-asset endpoint for plugins, and the tablet is
+ * own routes. Decaid has no static-asset endpoint for plugins, and the tablet is
  * offline, so a CDN <script> would leave the LED colour picker and the notes
  * editor permanently broken.
  *

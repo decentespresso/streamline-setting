@@ -76,7 +76,7 @@ jobs:
           name: streamline-settings.reaplugin
           path: streamline-settings.reaplugin/
 
-      # Zip keeps the streamline-settings.reaplugin/ folder as the top-level entry, because REA
+      # Zip keeps the streamline-settings.reaplugin/ folder as the top-level entry, because Decaid
       # identifies a plugin by that folder name.
       - name: Create release archive
         if: startsWith(github.ref, 'refs/tags/v')

@@ -1,4 +1,4 @@
-# Porting Streamline Settings to a standalone REA plugin
+# Porting Streamline Settings to a standalone Decaid plugin
 
 Source: `streamline_js/streamline_project/src/settings` (+ ~23 modules it imports)
 Model:  `streamline_js/dye2` (dye2-plugin → dye2.reaplugin)

@@ -175,7 +175,7 @@ function cssVarFallbacks(): string {
 }
 
 /**
- * Page shell for dev-style pages (Tailwind + REA CSS variables).
+ * Page shell for dev-style pages (Tailwind + Decaid CSS variables).
  * Use this instead of hand-rolled HTML for pages ported from dev/.
  */
 export function pageShell(

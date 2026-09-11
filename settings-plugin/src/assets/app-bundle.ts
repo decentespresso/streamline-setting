@@ -1,7 +1,7 @@
 /**
  * Serves the browser-side app bundle built by vite.app.config.ts.
  *
- * REA has no static-asset endpoint for plugins, so the only way to hand the
+ * Decaid has no static-asset endpoint for plugins, so the only way to hand the
  * WebView a .js file is an `http` route of our own — the same trick dye2 uses
  * for Plotly. The bytes ride along inside plugin.js.
  */

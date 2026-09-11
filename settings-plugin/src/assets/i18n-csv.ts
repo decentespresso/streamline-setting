@@ -2,7 +2,7 @@
  * The translation table, served by the plugin's own route.
  *
  * i18n.js fetches this once per page load and parses it (i18n-parser.js). In the
- * skin it was a file under src/ui/; REA has no static-asset endpoint for plugins,
+ * skin it was a file under src/ui/; Decaid has no static-asset endpoint for plugins,
  * so it rides inside plugin.js like every other asset here.
  *
  * It is the single largest thing in the bundle (~1.5 MB). Left as a route rather

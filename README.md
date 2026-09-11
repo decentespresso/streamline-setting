@@ -1,6 +1,6 @@
 # Streamline Settings plugin
 
-Streamline's settings page as a standalone REA/Decaid plugin.
+Streamline's settings page as a standalone Decaid plugin.
 
 **What it is for:** running Streamline's settings with a different skin. If you
 like how Streamline handles machine settings — calibration, steam, hot water,
