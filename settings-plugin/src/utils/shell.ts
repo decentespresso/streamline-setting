@@ -206,8 +206,8 @@ export function pageShell(
   ${content}
   <script>${fitScript}</script>
   ${/* Page-relative, never a CDN — the tablet is offline. Resolves under both
-        runtimes: /api/v1/plugins/streamline-settings.reaplugin/settings -> .../app, and
-        the dev server's /settings -> /app. */ ""}
+        runtimes: /api/v1/plugins/streamline-settings.reaplugin/ui -> .../app, and
+        the dev server's /ui -> /app. */ ""}
   <script src="app"></script>
   ${scripts.map((s) => `<script>${s}</script>`).join("\n")}
 </body>

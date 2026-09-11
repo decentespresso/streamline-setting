@@ -19,7 +19,7 @@ See [PORT_PLAN.md](PORT_PLAN.md) for the design and the phase breakdown, and
 ## Using it with another skin
 
 The plugin is self-contained. It serves a complete page at
-`/api/v1/plugins/streamline-settings.reaplugin/settings`, talks to the bridge
+`/api/v1/plugins/streamline-settings.reaplugin/ui`, talks to the bridge
 itself, and carries its own palette, fonts and libraries — it needs nothing from
 the skin that opens it.
 

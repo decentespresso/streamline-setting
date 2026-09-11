@@ -35,7 +35,7 @@ assert.ok(logs.some((l) => l.includes('loaded')), 'onLoad should log something')
 
 const response = plugin.__httpRequestHandler({
   requestId: 'smoke-1',
-  endpoint: 'settings',
+  endpoint: 'ui',
   method: 'GET',
   headers: {},
   body: null,
@@ -101,6 +101,20 @@ const notFound = plugin.__httpRequestHandler({
 assert.equal(notFound.status, 404);
 
 console.log('smoke test passed');
+
+// Decaid owns these paths under /api/v1/plugins/{id}/; an endpoint named after
+// one of them is shadowed by Decaid's own route and silently never reaches the
+// plugin. That shipped once: the page was called "settings" and every request
+// returned the manifest's settings object ({}) instead of the page.
+{
+  const manifest = JSON.parse(
+    readFileSync(resolve(__dirname, '../manifest.src.json'), 'utf-8'));
+  const RESERVED = ['settings', 'enable', 'disable', 'source', 'update'];
+  for (const route of manifest.api) {
+    assert.ok(!RESERVED.includes(route.id),
+      `endpoint "${route.id}" collides with a built-in Decaid plugin route`);
+  }
+}
 
 // A `*/` inside a CSS comment (a glob like src/**/*.js, say) ends the comment
 // early and swallows the rule that follows into an invalid selector. That

@@ -14,7 +14,7 @@
   "settings": {},
   "api": [
     {
-      "id": "settings",
+      "id": "ui",
       "type": "http",
       "data": {}
     },

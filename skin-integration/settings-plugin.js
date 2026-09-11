@@ -14,7 +14,7 @@ import { SETTINGS_NAMESPACE, SYNCED_KEYS } from './settingsSync.js';
 import { logger } from './logger.js';
 
 const PLUGIN_ID = 'streamline-settings.reaplugin';
-const PLUGIN_URL = `${API_BASE_URL}/plugins/${PLUGIN_ID}/settings`;
+const PLUGIN_URL = `${API_BASE_URL}/plugins/${PLUGIN_ID}/ui`;
 
 const synced = new Set(SYNCED_KEYS);
 

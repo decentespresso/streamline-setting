@@ -37,7 +37,11 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       log(`HTTP ${request.method} ${request.endpoint}`);
 
       switch (request.endpoint) {
-        case "settings":
+        // "ui", not "settings": GET /api/v1/plugins/{id}/settings is one of
+        // Decaid's own plugin routes (it returns the manifest's `settings`
+        // object), so an endpoint by that name is shadowed and never reaches
+        // this handler. Same for enable, disable, source and update.
+        case "ui":
           return renderSettingsPage(request);
 
         // Not a page: the browser-side settings bundle the page loads.

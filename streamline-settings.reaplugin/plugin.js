@@ -756,7 +756,7 @@ var createPlugin = (function() {
 			__httpRequestHandler(request) {
 				log(`HTTP ${request.method} ${request.endpoint}`);
 				switch (request.endpoint) {
-					case "settings": return renderSettingsPage(request);
+					case "ui": return renderSettingsPage(request);
 					case "app": return renderAppBundle(request);
 					case "i18n.csv": return renderI18nCsv(request);
 					case "iro": return renderIro(request);
