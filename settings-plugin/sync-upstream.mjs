@@ -504,10 +504,16 @@ if (isMain && !check && !failed) recordProvenance();
 
 function recordProvenance() {
   const statePath = resolve(__dirname, "upstream.json");
-  const prev = existsSync(statePath) ? JSON.parse(readFileSync(statePath, "utf-8")) : {};
   // watch-upstream.mjs passes --src and writes its own record afterwards; this
   // only describes a sync from a working tree.
   if (srcFlag > -1) return;
+
+  const prev = existsSync(statePath) ? JSON.parse(readFileSync(statePath, "utf-8")) : {};
+  if (prev.tag) {
+    console.log(`\nNOTE: this replaced code vendored from release ${prev.tag} with a local`);
+    console.log(`working tree. Releases are the shipping source — run \`npm run watch:sync\``);
+    console.log(`before committing unless you meant to develop against unreleased changes.`);
+  }
 
   let describe = null;
   try {
@@ -517,7 +523,6 @@ function recordProvenance() {
     // Not a git checkout, or no git. The path is still worth recording.
   }
   writeFileSync(statePath, JSON.stringify({
-    ...prev,
     source: "local-tree",
     path: UPSTREAM_DIR,
     describe,
