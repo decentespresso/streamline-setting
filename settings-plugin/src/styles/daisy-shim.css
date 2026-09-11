@@ -1,0 +1,112 @@
+/* The skin gets these from daisyUI; the plugin does not take that dependency for
+   14 classes (PORT_PLAN §4 spirit — see also base-100/200/300 in skin-vars.css).
+   This implements exactly the daisyUI surface the ported settings markup uses.
+   Sized for the 1920x1200 design reference, not daisyUI's web defaults.
+
+   If a category starts using a new daisyUI class, add it here; `npm run
+   audit:daisy` lists what the ported markup references. */
+
+/* ── .btn ─────────────────────────────────────────────────────────────────── */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 60px;
+    padding: 0 28px;
+    border-radius: 10px;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1;
+    text-align: center;
+    background-color: var(--button-grey);
+    color: var(--text-primary);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background-color .15s, opacity .15s;
+}
+.btn:hover { opacity: .85; }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn-primary { background-color: var(--mimoja-blue); color: #fff; }
+.btn-error { background-color: var(--status-red-color); color: #fff; }
+.btn-sm { height: 44px; padding: 0 18px; font-size: 19px; }
+
+/* ── .checkbox ────────────────────────────────────────────────────────────── */
+.checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border: 2px solid var(--toggle-off-border);
+    border-radius: 6px;
+    background-color: var(--profile-button-background-color);
+    cursor: pointer;
+    display: inline-grid;
+    place-content: center;
+}
+.checkbox:checked::before {
+    content: "";
+    width: 16px;
+    height: 16px;
+    /* Inset box-shadow, not a background: survives the appearance:none reset. */
+    box-shadow: inset 16px 16px currentColor;
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+.checkbox-primary:checked { border-color: var(--mimoja-blue); color: var(--mimoja-blue); }
+.checkbox:disabled { opacity: .5; cursor: default; }
+
+/* ── .input ───────────────────────────────────────────────────────────────── */
+.input {
+    height: 60px;
+    padding: 0 16px;
+    border-radius: 8px;
+    font-size: 22px;
+    line-height: 1;
+    background-color: var(--profile-button-background-color);
+    color: var(--text-primary);
+    border: 1px solid transparent;
+}
+.input-bordered { border-color: var(--border-color); }
+.input:focus { outline: none; border-color: var(--mimoja-blue); }
+
+/* ── .modal ───────────────────────────────────────────────────────────────── */
+/* Applied to <dialog>, which showModal() already centres and backdrops; these
+   only supply the panel's own box. */
+.modal {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    max-width: none;
+    max-height: none;
+}
+.modal::backdrop { background: rgba(0, 0, 0, .45); }
+.modal-box {
+    padding: 36px 40px;
+    border-radius: 20px;
+    background-color: var(--box-color);
+    color: var(--text-primary);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+.modal-action {
+    display: flex;
+    justify-content: flex-end;
+    gap: 14px;
+    margin-top: 26px;
+}
+
+/* ── .loading ─────────────────────────────────────────────────────────────── */
+.loading {
+    display: inline-block;
+    aspect-ratio: 1 / 1;
+    width: 28px;
+    border: 3px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: daisy-spin .7s linear infinite;
+    /* daisyUI's spinner is a mask; a border ring reads identically at these sizes. */
+    color: var(--mimoja-blue);
+}
+.loading-lg { width: 44px; border-width: 4px; }
+@keyframes daisy-spin { to { transform: rotate(360deg); } }

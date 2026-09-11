@@ -1,0 +1,90 @@
+# Watch decentespresso/streamline-js for new releases and open a PR when one
+# changes the settings code this plugin vendors.
+#
+# "Settings code" is not a path glob maintained here — it is whatever
+# settings-plugin/sync-upstream.mjs's FILES manifest names, which is the same
+# list the sync itself uses. A release that touches nothing in that list closes
+# out as a no-op.
+name: Watch upstream skin releases
+
+on:
+  schedule:
+    # Daily, a little after the hour; the skin releases irregularly.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Sync to a specific tag instead of the latest release"
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: settings-plugin/package-lock.json
+
+      - name: Sync from the upstream release
+        id: sync
+        working-directory: settings-plugin
+        env:
+          # watch-upstream.mjs prefers `gh`; the runner has it authenticated.
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.tag }}" ]; then
+            node watch-upstream.mjs --tag "${{ inputs.tag }}" | tee sync.log
+          else
+            node watch-upstream.mjs | tee sync.log
+          fi
+          # Nothing to do if no vendored file moved.
+          if git diff --quiet -- src/ upstream.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The point of the PR is that a human reviews a *working* sync, so the
+      # build and the tests gate it rather than running after the merge.
+      - name: Build and test
+        if: steps.sync.outputs.changed == 'true'
+        working-directory: settings-plugin
+        run: npm ci && npm run build && npm test
+
+      - name: Open a pull request
+        if: steps.sync.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: upstream-sync
+          title: "Sync settings code from upstream skin release"
+          commit-message: |
+            Sync vendored settings code from upstream
+
+            Pulled by .github/workflows/upstream-watch.yml from
+            decentespresso/streamline-js, filtered to the paths named in
+            settings-plugin/sync-upstream.mjs.
+
+            Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+          body-path: settings-plugin/sync.log
+          delete-branch: true
+          add-paths: |
+            settings-plugin/src/
+            settings-plugin/upstream.json
+            streamline-settings.reaplugin/
+
+      # A patch anchor that no longer matches means the port's edits could not be
+      # re-applied. The sync exits non-zero and the job fails — which is the point:
+      # a silent drop would ship skin code with the port's changes missing.
+      - name: Report a failed sync
+        if: failure()
+        run: |
+          echo "::error::Upstream sync failed. A patch anchor in sync-upstream.mjs probably no longer matches the skin; re-anchor it and re-run."

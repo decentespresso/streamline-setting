@@ -1,0 +1,209 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+
+// Persistence of the user's main-page settings: the shared KV record that
+// outranks a drifted workflow (milk stop, plus the resync rule every tile value
+// shares), the after-boot drift check on incoming shotSettings frames, and the
+// per-profile brew-temp override.
+//
+// api.js / app.js / profileManager.js can't be imported under node (browser
+// globals), so the functions under test are lifted out of the source and run
+// with their dependencies injected -- same trick as settings-write-cache.test.mjs.
+
+function lift(module, patterns) {
+    const source = readFileSync(new URL(`../src/app/modules/${module}`, import.meta.url), 'utf8');
+    return patterns.map(pattern => {
+        const match = source.match(pattern);
+        assert.ok(match, `${module}: no match for ${pattern}`);
+        return match[0].replace('export ', '');
+    }).join('\n');
+}
+
+// ── Milk stop + the shared KV resync rule (api.js) ───────────────────────────
+{
+    const body = lift('api.js', [
+        /export const MILK_STOP_LAST_VALUE_KEY = .*;/,
+        /export async function readSharedValue\(key\) \{[\s\S]*?\r?\n\}/,
+        /export async function resyncIfDrifted\(key, fetchedValue, pushFn\) \{[\s\S]*?\r?\n\}/,
+        /export async function resyncMilkStopIfDrifted\(stopAtTemperature\) \{[\s\S]*?\r?\n\}/,
+        /export async function setStopAtTemperature\(celsius\) \{[\s\S]*?\r?\n\}/,
+    ]);
+
+    const build = (remembered) => {
+        const kvWrites = [];
+        const workflowWrites = [];
+        const api = new Function(
+            'logger', 'persistSharedValue', 'updateWorkflow', 'getValueFromStore', 'openDB', 'getSetting',
+            `${body}\nreturn { setStopAtTemperature, resyncMilkStopIfDrifted, resyncIfDrifted };`,
+        )(
+            { warn() {}, error() {} },
+            async (key, value) => { kvWrites.push([key, value]); },
+            async (patch) => { workflowWrites.push(patch); },
+            async () => remembered,
+            async () => {},
+            async () => remembered,
+        );
+        return { api, kvWrites, workflowWrites };
+    };
+
+    test('an armed milk stop is remembered in KV before it reaches the machine', async () => {
+        const { api, kvWrites, workflowWrites } = build(null);
+        await api.setStopAtTemperature(60);
+        assert.deepEqual(kvWrites, [['last-milk-stop', 60]]);
+        assert.deepEqual(workflowWrites, [{ steamSettings: { stopAtTemperature: 60 } }]);
+    });
+
+    test('turning the stop off writes the machine but never the KV record', async () => {
+        // 0 = off (user toggle, or a probe that vanished). Persisting it would erase
+        // the temperature the user tuned.
+        const { api, kvWrites, workflowWrites } = build(null);
+        await api.setStopAtTemperature(0);
+        assert.deepEqual(kvWrites, []);
+        assert.deepEqual(workflowWrites, [{ steamSettings: { stopAtTemperature: 0 } }]);
+    });
+
+    test('a drifted armed stop is re-pushed from the KV record', async () => {
+        const { api, kvWrites, workflowWrites } = build(60);
+        await api.resyncMilkStopIfDrifted(55);
+        assert.deepEqual(workflowWrites, [{ steamSettings: { stopAtTemperature: 60 } }]);
+        assert.deepEqual(kvWrites, [['last-milk-stop', 60]]);
+    });
+
+    test('an agreeing armed stop is left alone', async () => {
+        const { api, workflowWrites } = build(60);
+        await api.resyncMilkStopIfDrifted(60);
+        assert.deepEqual(workflowWrites, []);
+    });
+
+    test('a stop that is off is never re-armed by the remembered target', async () => {
+        const { api, workflowWrites } = build(60);
+        await api.resyncMilkStopIfDrifted(0);
+        await api.resyncMilkStopIfDrifted(undefined);
+        assert.deepEqual(workflowWrites, []);
+    });
+
+    test('a stored value above the API ceiling is clamped on the way out', async () => {
+        // rest_v1.yml SteamSettings.stopAtTemperature documents range 0..80; the tile
+        // used to allow 85, so an older KV record can still hold one.
+        const { api, kvWrites, workflowWrites } = build(85);
+        await api.resyncMilkStopIfDrifted(60);
+        assert.deepEqual(workflowWrites, [{ steamSettings: { stopAtTemperature: 80 } }]);
+        assert.deepEqual(kvWrites, [['last-milk-stop', 80]]);
+    });
+
+    test('a remembered value is pushed even when the workflow has no value at all', async () => {
+        // The user's setting wins over an absent machine value -- a missing field is
+        // the strongest reason to push what they asked for, not a reason to drop it.
+        const pushed = [];
+        const { api } = build(45);
+        await api.resyncIfDrifted('last-anything', undefined, async (v) => { pushed.push(v); });
+        await api.resyncIfDrifted('last-anything', null, async (v) => { pushed.push(v); });
+        assert.deepEqual(pushed, [45, 45]);
+    });
+
+    test('the pushed value is returned so the caller can repaint its tile', async () => {
+        // Pushing alone leaves the tile on the drifted workflow value. Steam flow,
+        // the milk stop and the flush duration are in no websocket payload, so
+        // nothing else would ever correct them.
+        const { api } = build(45);
+        assert.equal(await api.resyncIfDrifted('last-anything', 30, async () => {}), 45);
+        assert.equal(await api.resyncMilkStopIfDrifted(55), 45);
+    });
+
+    test('an agreeing value returns nothing to repaint', async () => {
+        const { api } = build(45);
+        assert.equal(await api.resyncIfDrifted('last-anything', 45, async () => {}), null);
+        assert.equal(await api.resyncMilkStopIfDrifted(45), null);
+        // A disarmed stop never reaches the comparison at all.
+        assert.equal(await api.resyncMilkStopIfDrifted(0), null);
+    });
+
+    test('with nothing remembered the machine value stands', async () => {
+        const pushed = [];
+        const { api } = build(null);
+        await api.resyncIfDrifted('last-anything', 30, async (v) => { pushed.push(v); });
+        await api.resyncIfDrifted('last-anything', undefined, async (v) => { pushed.push(v); });
+        assert.deepEqual(pushed, []);
+    });
+}
+
+// ── Steam duration 0 = steam off, heater included (api.js) ──────────────────
+{
+    const body = lift('api.js', [
+        /export const STEAM_DURATION_LAST_VALUE_KEY = .*;/,
+        /export const STEAM_TEMP_LAST_VALUE_KEY = .*;/,
+        /export async function readSharedValue\(key\) \{[\s\S]*?\r?\n\}/,
+        /export async function setTargetSteamTemp\(temp\) \{[\s\S]*?\r?\n\}/,
+        /async function steamHeaterFor\(duration\) \{[\s\S]*?\r?\n\}/,
+        /export async function setTargetSteamDuration\(duration\) \{[\s\S]*?\r?\n\}/,
+    ]);
+
+    // `remembered` is the KV record of the last enabled temperature; `machineTemp`
+    // is what the workflow currently holds.
+    const build = (remembered, machineTemp = 150) => {
+        const kvWrites = [];
+        const workflowWrites = [];
+        const api = new Function(
+            'logger', 'persistSharedValue', 'updateWorkflow', 'getWorkflow', 'getValueFromStore', 'openDB', 'getSetting',
+            `${body}\nreturn { setTargetSteamDuration, setTargetSteamTemp };`,
+        )(
+            { warn() {}, error() {} },
+            async (key, value) => { kvWrites.push([key, value]); },
+            async (patch) => { workflowWrites.push(patch); },
+            async () => ({ steamSettings: { targetTemperature: machineTemp } }),
+            async () => remembered,
+            async () => {},
+            async () => remembered,
+        );
+        return { api, kvWrites, workflowWrites };
+    };
+
+    test('duration 0 switches the heater off too', async () => {
+        // rest_v1.yml: SteamSettings.duration "does not control steam-heater
+        // preheating" -- only targetTemperature 0 does. Sending duration alone
+        // left the boiler heating for a user who asked for steam off.
+        const { api, kvWrites, workflowWrites } = build(null, 150);
+        await api.setTargetSteamDuration(0);
+        assert.deepEqual(workflowWrites, [{ steamSettings: { duration: 0, targetTemperature: 0 } }]);
+        // The temperature it was switched off from is remembered, not lost.
+        assert.deepEqual(kvWrites, [['last-steam-duration', 0], ['last-steam-temp', 150]]);
+    });
+
+    test('re-arming steam restores the remembered temperature', async () => {
+        const { api, workflowWrites } = build(150, 0);
+        await api.setTargetSteamDuration(30);
+        assert.deepEqual(workflowWrites, [{ steamSettings: { duration: 30, targetTemperature: 150 } }]);
+    });
+
+    test('with nothing remembered the machine keeps whatever temperature it has', async () => {
+        const { api, workflowWrites } = build(null, 150);
+        await api.setTargetSteamDuration(30);
+        assert.deepEqual(workflowWrites, [{ steamSettings: { duration: 30 } }]);
+    });
+
+    test('an already-off machine has no temperature worth remembering', async () => {
+        const { api, kvWrites } = build(null, 0);
+        await api.setTargetSteamDuration(0);
+        assert.deepEqual(kvWrites, [['last-steam-duration', 0]]);
+    });
+
+    test('only enabled steam temperatures are remembered', async () => {
+        const on = build(null);
+        await on.api.setTargetSteamTemp(155);
+        assert.deepEqual(on.kvWrites, [['last-steam-temp', 155]]);
+        assert.deepEqual(on.workflowWrites, [{ steamSettings: { targetTemperature: 155 } }]);
+
+        const off = build(null);
+        await off.api.setTargetSteamTemp(0);
+        assert.deepEqual(off.kvWrites, []);
+        assert.deepEqual(off.workflowWrites, [{ steamSettings: { targetTemperature: 0 } }]);
+    });
+}
+
+// REMOVED IN THE PORT: this block lifted resyncDriftedShotSettings out of the
+// skin's app.js, and the next one lifted withSavedBrewTemp out of
+// profileManager.js. Neither module is vendored — they are skin boot code, not
+// settings code (PORT_PLAN.md §4-C/§4-F). The api.js coverage above, which is
+// what settingsSync's KV contract actually rests on, is kept in full.
+

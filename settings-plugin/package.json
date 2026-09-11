@@ -1,0 +1,25 @@
+{
+  "name": "@streamline/settings-plugin",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Streamline Settings plugin for Decent Espresso (REA/Decaid)",
+  "type": "module",
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i src/styles/tailwind.css -o src/styles/tailwind.generated.css --minify",
+    "build": "npm run build:css && npm run build:app && vite build",
+    "dev": "vite build -c vite.app.config.ts --watch & vite build --watch",
+    "serve": "node dev-server.mjs",
+    "test": "node --test \"test/*.test.mjs\"",
+    "build:app": "vite build -c vite.app.config.ts",
+    "sync": "node sync-upstream.mjs",
+    "sync:check": "node sync-upstream.mjs --check",
+    "watch:check": "node watch-upstream.mjs --check",
+    "watch:sync": "node watch-upstream.mjs"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.19",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.8",
+    "vite-plugin-dts": "^4.0.0"
+  }
+}

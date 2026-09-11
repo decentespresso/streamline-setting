@@ -1,0 +1,52 @@
+{
+  "id": "streamline-settings.reaplugin",
+  "author": "Streamline",
+  "name": "Streamline Settings",
+  "description": "Streamline's settings page, ported to a standalone plugin so it can evolve independently of the skin.",
+  "version": "0.0.1",
+  "apiVersion": 1,
+  "permissions": [
+    "log",
+    "api",
+    "emit",
+    "pluginStorage"
+  ],
+  "settings": {},
+  "api": [
+    {
+      "id": "settings",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "app",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "i18n.csv",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "iro",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "easymde",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "easymde.css",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "easymde-icons.css",
+      "type": "http",
+      "data": {}
+    }
+  ]
+}

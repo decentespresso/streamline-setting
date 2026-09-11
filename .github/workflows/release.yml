@@ -1,0 +1,90 @@
+name: Build and Release Plugin
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: settings-plugin/package-lock.json
+
+      # On tag builds the tag is the single source of truth for the version.
+      # vite.config.ts copies settings-plugin/manifest.src.json into the output folder
+      # as manifest.json, so patching the source here is enough — the shipped
+      # manifest picks it up.
+      # package.json / package-lock.json get the same version, because the middleware
+      # reads it from there to show the plugin version on the dashboard.
+      - name: Sync manifest version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          jq --arg v "$version" '.version = $v' settings-plugin/manifest.src.json > manifest.tmp
+          mv manifest.tmp settings-plugin/manifest.src.json
+          (cd settings-plugin && npm version --no-git-tag-version --allow-same-version "$version")
+          echo "Synced manifest + package version to: $version"
+
+      - name: Build
+        run: npm ci && npm run build
+        working-directory: settings-plugin
+
+      # sync-upstream.mjs is deliberately NOT run here: it reads the skin's source
+      # tree from a sibling checkout that CI does not have. The vendored copies in
+      # src/app/ are committed, so the build is reproducible without it. Run
+      # `npm run sync` locally when pulling skin changes in.
+      - name: Test
+        run: npm test
+        working-directory: settings-plugin
+
+      - name: Validate build output
+        run: |
+          set -euo pipefail
+          test -s streamline-settings.reaplugin/plugin.js
+          test -s streamline-settings.reaplugin/manifest.json
+          jq -e '.id == "streamline-settings.reaplugin"' streamline-settings.reaplugin/manifest.json > /dev/null
+          jq -e '.apiVersion and .version' streamline-settings.reaplugin/manifest.json > /dev/null
+          # The bundle must expose createPlugin for flutter_js to call.
+          grep -q 'createPlugin' streamline-settings.reaplugin/plugin.js
+          echo "manifest: $(jq -c '{id,version,apiVersion}' streamline-settings.reaplugin/manifest.json)"
+
+      # plugin.js is committed to the repo as well, so flag when a commit shipped
+      # a stale build. Warning only — the release always uses the fresh build above.
+      - name: Warn if committed build is stale
+        if: github.ref == 'refs/heads/main'
+        run: |
+          if ! git diff --quiet -- streamline-settings.reaplugin/; then
+            echo "::warning::committed streamline-settings.reaplugin/ differs from a clean build — run 'npm run build' in settings-plugin and commit the result"
+            git diff --stat -- streamline-settings.reaplugin/
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: streamline-settings.reaplugin
+          path: streamline-settings.reaplugin/
+
+      # Zip keeps the streamline-settings.reaplugin/ folder as the top-level entry, because REA
+      # identifies a plugin by that folder name.
+      - name: Create release archive
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: zip -r "streamline-settings.reaplugin-${GITHUB_REF_NAME}.zip" streamline-settings.reaplugin
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: streamline-settings.reaplugin-${{ github.ref_name }}.zip
+          generate_release_notes: true
