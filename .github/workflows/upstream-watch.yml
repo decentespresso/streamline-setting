@@ -87,4 +87,4 @@ jobs:
       - name: Report a failed sync
         if: failure()
         run: |
-          echo "::error::Upstream sync failed. A patch anchor in sync-upstream.mjs probably no longer matches the skin; re-anchor it and re-run."
+          echo "::error::Upstream sync failed — see the step log above for the real cause. The usual one is a patch anchor in sync-upstream.mjs that no longer matches the skin; re-anchor it and re-run."
