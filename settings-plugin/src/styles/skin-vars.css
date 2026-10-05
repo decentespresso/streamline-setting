@@ -55,8 +55,15 @@
     --button-secondary-bg: #e8e8e8;
     --button-secondary-text: #121212;
     /* bg colors in profile editor */
-    --secondary-button-bg:#b6c3d7; 
+    --secondary-button-bg:#b6c3d7;
     --secondary-button-outline:#385a92;
+
+    /* Profile editor CARDS redesign (Figma, Light Mode only export) */
+    --bg-tertiary: #E9F1F8;
+    --bg-secondary: #F6F8FA;
+    --border-primary: #C9C9C9;
+    --border-graph-grid: #E8E8E8;
+    --tab-text-inactive: #5F7BA8;
 }
 
 :root {
@@ -74,8 +81,10 @@
 }
 
 
+/* main.css is linked after this file, so any dark token it also defines wins.
+   --text-primary and --button-grey live there; setting them here would read as
+   if it worked and do nothing. */
 [data-theme="dark"] {
-    --text-primary: #E0E0E0;
     --preset-active-color: #e8e8e8;
     --border-color: #374151; /* gray-700 */
     --mimoja-blue-v2: #415996;
@@ -83,7 +92,6 @@
     --low-contrast-white: #959595;
     --dark-gray: #101217;
     --green: #0CA581;
-    --button-grey: #101115;
     --toggle-off-bg: #2a2a2e;
     --toggle-off-border: #4a4a52;
     --toggle-off-knob: #5a5a64;
@@ -96,15 +104,29 @@
 }
 
 
-/* Profile editor: delete-step / insert-step icon buttons — neutral grey in dark mode */
-[data-theme="dark"] .pe-step-action-btn {
-    color: #959595;
-}
-
-
 /* GHC column: match shot-history-panel border, recolor buttons + icons for dark mode */
 [data-theme="dark"] #ghc-controls {
     border-left-color: black;
+}
+
+
+/* Header profile actions: the Figma exports are near-black line art, so flip them
+   to the dark-theme foreground the same way the GHC icons are flipped. */
+[data-theme="dark"] #profile-select-btn img,
+[data-theme="dark"] #profile-edit-btn img {
+    filter: brightness(0) invert(1);
+}
+
+
+/* These three boxes hardcode Figma's light-mode border (#C9C9C9) inline since
+   --border-color's light value (#EAEAEA) is too low-contrast to match the
+   design. Restore the existing dark-mode border token here instead of also
+   hardcoding a dark hex, so this stays in sync with --border-color's dark
+   value everywhere else. */
+[data-theme="dark"] #profile-select-btn,
+[data-theme="dark"] #profile-edit-btn,
+[data-theme="dark"] .skip-step-icon-box {
+    border-color: var(--border-color);
 }
 
 

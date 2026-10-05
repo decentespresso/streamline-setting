@@ -58,7 +58,8 @@ export const FILES = [
   // Added to the skin after v0.1.110 and imported only by a settings.js from the
   // same commits, so a release older than that legitimately has neither the
   // modules nor the imports. `optional` keeps a genuine removal a hard error.
-  ...["led-sequence", "led-strip-runner"].map((m) => ({
+  ...["led-sequence", "led-strip-runner", "calibrated-steam", "auto-steam-capability",
+      "auto-steam-flow", "auto-steam-safety", "auto-steam-session"].map((m) => ({
     from: `modules/${m}.js`,
     to: `src/app/modules/${m}.js`,
     optional: true,
@@ -182,6 +183,12 @@ export { API_BASE_URL };`],
 
   // ── settings chrome ───────────────────────────────────────────────────────
   { from: "settings/settings-tree.js", to: "src/app/settings-tree.js" },
+  // Added after v0.1.110, imported by a newer settings.js; see the optional modules above.
+  ...["plugin-view", "settings-restore"].map((m) => ({
+    from: `settings/${m}.js`,
+    to: `src/app/${m}.js`,
+    optional: true,
+  })),
   { from: "settings/categories/legacy-category.js", to: "src/app/categories/legacy-category.js" },
   { from: "settings/settings-location.js", to: "src/app/settings-location.js" },
   {

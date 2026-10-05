@@ -6,6 +6,9 @@ import ReconnectingWebSocket from './reconnecting-websocket.js';
 import { API_BASE_URL, WS_BASE_URL } from '../api-base.js';
 import { logger ,setDebug} from './logger.js';
 import { createSocketSlot } from './socket-slot.js';
+import { createScaleSampleBuffer } from './calibrated-steam.js';
+import { clampAutoSteamSettings } from './auto-steam-safety.js';
+import { AUTO_STEAM_SESSION_KEY, readAutoSteamSession } from './auto-steam-session.js';
 import { openDB, getSetting, setSetting } from './idb.js';
 import { buildCalibrateBody, classifyCalState } from './loadcell-cal.js';
 import { deriveDisplayAction, isScreensaverSuppressed } from './screensaver-policy.js';
@@ -45,6 +48,20 @@ export let reconnectingWebSocket = null; // Exporting for app.js access
 export let currentMachineState = null;
 let previousMachineState = null;
 let scaleWebSocket = null;
+const calibratedSteamSamples = createScaleSampleBuffer();
+let calibratedSteamSamplingEnabled = false;
+
+export function setCalibratedSteamSampling(enabled) {
+    const next = enabled === true;
+    if (calibratedSteamSamplingEnabled === next) return;
+    calibratedSteamSamplingEnabled = next;
+    calibratedSteamSamples.clear();
+}
+
+export function getCalibratedSteamSamples() {
+    return calibratedSteamSamples.read();
+}
+
 let sensorSnapshotWebSocket = null;
 let sensorSnapshotWebSocketId = null; // sensor `id` the open socket is bound to
 let displayWebSocket = null;
@@ -506,6 +523,7 @@ export function connectWebSocket(onData, onReconnect) {
 }
 
 export function connectScaleWebSocket(onData, onReconnect, onDisconnect) {
+    calibratedSteamSamples.clear();
     if (scaleWebSocket) {
         logger.info('Closing existing scale WebSocket before creating a new one.');
         scaleWebSocket.close();
@@ -516,6 +534,7 @@ export function connectScaleWebSocket(onData, onReconnect, onDisconnect) {
     });
 
     scaleWebSocket.onopen = () => {
+        calibratedSteamSamples.clear();
         logger.info('Scale WebSocket (re)connected.');
         if (onReconnect) {
             onReconnect();
@@ -526,12 +545,15 @@ export function connectScaleWebSocket(onData, onReconnect, onDisconnect) {
         try {
             const data = JSON.parse(event.data);
             if (data.status === 'disconnected') {
+                calibratedSteamSamples.clear();
                 logger.info('Scale disconnected (server status frame).');
                 if (onDisconnect) onDisconnect();
             } else if (data.status === 'connected') {
+                calibratedSteamSamples.clear();
                 logger.info('Scale connected (server status frame).');
                 if (onReconnect) onReconnect();
             } else {
+                if (calibratedSteamSamplingEnabled) calibratedSteamSamples.push(data);
                 onData(data);
             }
         } catch (error) {
@@ -540,6 +562,7 @@ export function connectScaleWebSocket(onData, onReconnect, onDisconnect) {
     };
 
     scaleWebSocket.onclose = () => {
+        calibratedSteamSamples.clear();
         logger.info('Scale WebSocket disconnected.');
         if (onDisconnect) {
             onDisconnect();
@@ -726,6 +749,19 @@ const deviceDataListeners = new Set();
 const deviceReconnectListeners = new Set();
 const deviceDisconnectListeners = new Set();
 const deviceErrorListeners = new Set();
+
+export function subscribeMachineConnectionChanges(listener) {
+    const identity = data => JSON.stringify((data?.devices || []).filter(device => device.type === 'machine' && device.state === 'connected').map(device => device.id).sort());
+    let previous = identity(lastDeviceData);
+    const onData = data => {
+        const next = identity(data);
+        if (next !== previous) { previous = next; listener(); }
+    };
+    const onDisconnect = () => { previous = 'disconnected'; listener(); };
+    deviceDataListeners.add(onData);
+    deviceDisconnectListeners.add(onDisconnect);
+    return () => { deviceDataListeners.delete(onData); deviceDisconnectListeners.delete(onDisconnect); };
+}
 
 export function connectDeviceWebSocket(onData, onReconnect, onDisconnect, onError) {
     // Every caller is a subscriber (mirrors connectDisplayWebSocket). This used to
@@ -1109,10 +1145,16 @@ export async function getKVValue(namespace, key) {
 }
 
 export async function setKVValue(namespace, key, value) {
+    // keepalive: settingsSync's mirror fires this right after a localStorage
+    // write and never awaits it before the page can navigate (e.g. switching
+    // skins). Without keepalive that in-flight POST is cancelled on unload,
+    // the durable copy stays stale, and the next hydrate() overwrites the
+    // fresh local value back to the old one ("KV wins on conflict").
     const response = await fetch(`${API_BASE_URL}/store/${encodeURIComponent(namespace)}/${encodeURIComponent(key)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(value),
+        keepalive: true,
     });
     if (!response.ok) {
         const errorBody = await response.text();
@@ -1122,16 +1164,24 @@ export async function setKVValue(namespace, key, value) {
 }
 
 export async function deleteKVValue(namespace, key) {
+    // keepalive: see setKVValue -- same drop-on-unload race for a removeItem.
     const response = await fetch(`${API_BASE_URL}/store/${encodeURIComponent(namespace)}/${encodeURIComponent(key)}`, {
         method: 'DELETE',
+        keepalive: true,
     });
     if (!response.ok) throw new Error(`KV deleteValue failed: ${response.status}`);
 }
 
-// ─── DYE2 KV bridge (read-only) ──────────────────────────────────────────────
+// ─── DYE2 KV bridge ──────────────────────────────────────────────────────────
 // DYE2 (a separate flutter_js plugin) persists auto-favourites and recipes as a
-// single JSON array per key under this namespace. Streamline is a read-only
-// consumer — never write these keys (see dye2-plugin/KV_CONTRACT.md).
+// single JSON array per key under this namespace. Streamline is normally a
+// read-only consumer of it (see dye2-plugin/KV_CONTRACT.md) — the one sanctioned
+// exception is dyeStrip.js's recipe/favourite auto-save, which patches a single
+// item's dashboardVariables/snapshot fields onto a freshly re-read array. There
+// is no field-level API (DYE2's own pages mutate the same way — read the whole
+// array, edit one item client-side, POST the whole array back), and no
+// version/ETag on this endpoint, so a write here races any concurrent DYE2
+// write the same way DYE2's own pages would race each other.
 export const DYE2_KV_NAMESPACE = 'dye2.reaplugin';
 
 // Read one DYE2 collection key as an array. A never-written key makes the bridge
@@ -1146,6 +1196,13 @@ export async function getDye2KvArray(key) {
         logger.info(`getDye2KvArray(${key}) → [] (${e.message})`);
         return [];
     }
+}
+
+// Write a whole DYE2 collection array back — see the module note above: this
+// is only ever called with an array freshly read moments earlier and patched
+// in place, never a stale cached copy.
+export async function setDye2KvArray(key, items) {
+    await setKVValue(DYE2_KV_NAMESPACE, key, items);
 }
 
 // ─── Profile API ─────────────────────────────────────────────────────────────
@@ -1381,7 +1438,23 @@ export async function updateWorkflow(data) {
         logger.error('updateWorkflow payload was', JSON.stringify(dataToSend));
         throw new Error(`Failed to update workflow: ${response.status} ${body}`);
     }
-    return response.json();
+    const result = await response.json();
+    for (const listener of workflowUpdateListeners) {
+        try { listener(result, dataToSend); } catch (e) { logger.error('workflow update listener failed', e); }
+    }
+    return result;
+}
+
+// Fires after every successful PUT /workflow with the merged workflow and the
+// exact partial payload that was sent — dyeStrip.js's recipe auto-save uses
+// the payload to tell which single field a dashboard edit touched, so it
+// patches only that field rather than resyncing everything. Returns an
+// unsubscribe function; listener errors are caught so one bad subscriber
+// can't break a tile write.
+const workflowUpdateListeners = new Set();
+export function onWorkflowUpdated(listener) {
+    workflowUpdateListeners.add(listener);
+    return () => workflowUpdateListeners.delete(listener);
 }
 
 export async function setMachineState(newState) {
@@ -1518,7 +1591,11 @@ export async function readSharedValue(key) {
 // is the source of truth so a phone and a tablet agree on the target;
 // IndexedDB is only consulted if the store can't be reached.
 export async function resyncIfDrifted(key, fetchedValue, pushFn) {
+    if (isAutoSteamActive() && [STEAM_DURATION_LAST_VALUE_KEY, STEAM_FLOW_LAST_VALUE_KEY, MILK_STOP_LAST_VALUE_KEY].includes(key)) return null;
     const remembered = await readSharedValue(key);
+    // Auto can become active while the shared value is being read. Re-check
+    // before an old manual target can be pushed over Auto's owned settings.
+    if (isAutoSteamActive() && [STEAM_DURATION_LAST_VALUE_KEY, STEAM_FLOW_LAST_VALUE_KEY, MILK_STOP_LAST_VALUE_KEY].includes(key)) return null;
     // No record of the user ever setting this -> whatever the machine holds
     // stands. Otherwise the remembered value wins, INCLUDING when the workflow
     // has no value at all (fetchedValue null/undefined): a missing field is not
@@ -1537,18 +1614,28 @@ export async function resyncIfDrifted(key, fetchedValue, pushFn) {
     return remembered;
 }
 
+// KV first, machine second, for the same reason as setTargetSteamDuration: the
+// store is the record of intent, and everything else compares against it.
+//
+// Storing after the PUT resolved (and without awaiting the store write) left a
+// window in which the workflow and the machine already held the NEW value while
+// the store still held the OLD one. Hot water is echoed straight back by a
+// shotSettings frame, so resyncDriftedShotSettings runs inside that window,
+// reads the stale store, and treats the user's own change as drift -- pushing
+// the OLD value back over the machine and the workflow. The tile flashed the
+// new number, the echo of the re-pushed old one repainted it, and the setting
+// was gone. Intermittent rather than constant only because RESYNC_COOLDOWN_MS
+// suppresses the check for 30s after it fires.
 export async function setTargetHotWaterVolume(volume) {
     const value = parseFloat(volume);
-    const result = await updateWorkflow({ hotWaterData: { volume: value } });
-    persistSharedValue(HOT_WATER_VOLUME_LAST_VALUE_KEY, value);
-    return result;
+    await persistSharedValue(HOT_WATER_VOLUME_LAST_VALUE_KEY, value);
+    return updateWorkflow({ hotWaterData: { volume: value } });
 }
 
 export async function setTargetHotWaterTemp(temp) {
     const value = parseFloat(temp);
-    const result = await updateWorkflow({ hotWaterData: { targetTemperature: value } });
-    persistSharedValue(HOT_WATER_TEMP_LAST_VALUE_KEY, value);
-    return result;
+    await persistSharedValue(HOT_WATER_TEMP_LAST_VALUE_KEY, value);
+    return updateWorkflow({ hotWaterData: { targetTemperature: value } });
 }
 
 export async function setTargetHotWaterDuration(duration) {
@@ -1589,17 +1676,26 @@ async function steamHeaterFor(duration) {
     return remembered > 0 ? { targetTemperature: Math.round(remembered) } : {};
 }
 
-// KV first, machine second -- deliberately the reverse order of the hot-water
-// setters above. PUT /workflow can sit in Rea's request queue for 30s and come
-// back 503 (decaid#634), and persisting only on success leaves the store
-// holding the OLD value: the boot resync would then push that stale value back
-// over what the user asked for, and the tile's number would be the only trace
-// of their intent left anywhere. Writing it first makes the store the record of
-// intent, which is what resyncSteamFromStore replays when a push doesn't land.
+// KV first, machine second, like the hot-water setters above. PUT /workflow can
+// sit in Rea's request queue for 30s and come back 503 (decaid#634), and
+// persisting only on success leaves the store holding the OLD value: the boot
+// resync would then push that stale value back over what the user asked for,
+// and the tile's number would be the only trace of their intent left anywhere.
+// Writing it first makes the store the record of intent, which is what
+// resyncSteamFromStore replays when a push doesn't land.
 export async function setTargetSteamDuration(duration) {
+    if (isAutoSteamActive()) throw new Error('Use a pitcher preset in Auto mode, or switch to Flow or Time.');
     const value = parseFloat(duration);
     await persistSharedValue(STEAM_DURATION_LAST_VALUE_KEY, value);
     return updateWorkflow({ steamSettings: { duration: value, ...(await steamHeaterFor(value)) } });
+}
+
+export function isAutoSteamActive() {
+    return readAutoSteamSession(localStorage.getItem(AUTO_STEAM_SESSION_KEY)).active === true;
+}
+
+export async function writeAutoSteamSettings(steam) {
+    return updateWorkflow({ steamSettings: clampAutoSteamSettings(steam) });
 }
 
 // Steam-heater switch for procedures that must not run against a hot steam
@@ -1611,6 +1707,7 @@ export async function setSteamHeaterEnabled(enabled) {
 }
 
 export async function setTargetSteamFlow(flow) {
+    if (isAutoSteamActive()) throw new Error('Use a pitcher preset in Auto mode, or switch to Flow or Time.');
     const value = parseFloat(flow);
     await persistSharedValue(STEAM_FLOW_LAST_VALUE_KEY, value);
     return updateWorkflow({ steamSettings: { flow: value } });
@@ -1759,8 +1856,20 @@ export async function setCupWarmerPrewarm(enabled, leadMinutes) {
 
 // ── Bengle: LED strip ───────────────────────────────────────────────────────
 // State = { frontStrip, backStrip, frontSwitch }, each { awake, sleeping } as a
-// 12-char hex 'RRRRGGGGBBBB'. PUT pushes live (no NVM); commit persists to NVM;
-// reset reloads NVM and returns the refreshed state. 404 on a non-Bengle.
+// 12-char hex 'RRRRGGGGBBBB'. 404 on a non-Bengle.
+//
+// These three are the whole surface -- there is no preview endpoint. Per
+// rest_v1.yml and reaprime's de1handler.dart / led_strip_capability.dart:
+//   PUT    writes the four palette MMR registers straight through. It is
+//          immediate AND persistent; there is no staging latch.
+//   commit is a documented compatibility no-op (202, no side effects). Kept
+//          because it is the contract's "persist" verb, not because it does
+//          anything today.
+//   reset  RE-READS the registers and returns them. It is a truthful reload,
+//          NOT a rollback -- the firmware cannot undo a persisted write.
+// So anything that paints the strip temporarily (a colour preview, a sequence
+// step) must PUT the colour and then PUT the real palette back itself; nothing
+// on the server side will restore it. `frontSwitch` is ignored on write.
 export async function getLedStrip() {
     const response = await fetch(`${API_BASE_URL}/machine/ledStrip`);
     if (!response.ok) throw new Error(`Failed to get LED strip (status ${response.status})`);
@@ -1787,24 +1896,6 @@ export async function resetLedStrip() {
     const response = await fetch(`${API_BASE_URL}/machine/ledStrip/reset`, { method: 'POST' });
     if (!response.ok) throw new Error(`Failed to reset LED strip (status ${response.status})`);
     return response.json();
-}
-
-// Live preview: show `front`/`back` (12-char hex) on the strip now, regardless
-// of awake/sleep, without changing the stored palette. clear -> restore awake.
-export async function previewLedStrip(front, back) {
-    const response = await fetch(`${API_BASE_URL}/machine/ledStrip/preview`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ front, back }),
-    });
-    if (!response.ok) throw new Error(`Failed to preview LED (status ${response.status})`);
-    return true;
-}
-
-export async function clearLedStripPreview() {
-    const response = await fetch(`${API_BASE_URL}/machine/ledStrip/preview/clear`, { method: 'POST' });
-    if (!response.ok) throw new Error(`Failed to clear LED preview (status ${response.status})`);
-    return true;
 }
 
 export async function getAppInfo() {
@@ -2412,10 +2503,24 @@ export async function setPluginSettings(pluginId, settings) {
             throw new Error(`Failed to set plugin settings for ${pluginId}. Status: ${response.status}, Body: ${errorBody}`);
         }
         logger.info(`Plugin settings for ${pluginId} updated successfully:`, settings);
+        document.dispatchEvent(new CustomEvent('streamline:plugins-changed', { detail: { pluginId } }));
         return true;
     } catch (error) {
         throw error; // Re-throw to allow calling code to handle
     }
+}
+
+function pluginEndpointError(pluginId, endpoint, status, errorBody) {
+    let details = null;
+    try { details = JSON.parse(errorBody); } catch {}
+    const message = typeof details?.message === 'string' && details.message
+        ? details.message
+        : `Failed to call plugin endpoint ${pluginId}/${endpoint}. Status: ${status}${errorBody ? `, Body: ${errorBody}` : ''}`;
+    const error = new Error(message);
+    error.status = status;
+    error.endpoint = endpoint;
+    if (typeof details?.code === 'string') error.code = details.code;
+    return error;
 }
 
 export async function callPluginEndpoint(pluginId, endpoint, body, method = 'POST') {
@@ -2430,7 +2535,7 @@ export async function callPluginEndpoint(pluginId, endpoint, body, method = 'POS
 
         if (!response.ok) {
             const errorBody = await response.text();
-            throw new Error(`Failed to call plugin endpoint ${pluginId}/${endpoint}. Status: ${response.status}, Body: ${errorBody}`);
+            throw pluginEndpointError(pluginId, endpoint, response.status, errorBody);
         }
         
         const contentType = response.headers.get('content-type');
@@ -2582,6 +2687,15 @@ export async function restoreBrightnessFromStorage() {
 export function isWakeLockEnabled() {
     const stored = localStorage.getItem('wakeLockEnabled');
     return stored === null ? true : stored === 'true';
+}
+
+/** Load a chosen profile onto the machine when it wakes from sleep. Default OFF. */
+export function isWakeProfileEnabled() {
+    return localStorage.getItem('wakeProfileEnabled') === 'true';
+}
+
+export function getWakeProfileId() {
+    return localStorage.getItem('wakeProfileId') || '';
 }
 
 export async function enableWakeLock() {
@@ -2840,13 +2954,17 @@ export async function setDefaultSkin(skinId) {
 export async function enablePlugin(pluginId) {
     const response = await fetch(`${API_BASE_URL}/plugins/${encodeURIComponent(pluginId)}/enable`, { method: 'POST' });
     if (!response.ok) throw new Error(`Failed to enable plugin ${pluginId}: ${response.status} ${response.statusText}`);
-    return response.json();
+    const result = await response.json();
+    document.dispatchEvent(new CustomEvent('streamline:plugins-changed', { detail: { pluginId } }));
+    return result;
 }
 
 export async function disablePlugin(pluginId) {
     const response = await fetch(`${API_BASE_URL}/plugins/${encodeURIComponent(pluginId)}/disable`, { method: 'POST' });
     if (!response.ok) throw new Error(`Failed to disable plugin ${pluginId}: ${response.status} ${response.statusText}`);
-    return response.json();
+    const result = await response.json();
+    document.dispatchEvent(new CustomEvent('streamline:plugins-changed', { detail: { pluginId } }));
+    return result;
 }
 
 // Plugin distribution is Decaid's job: it records where each plugin came from
