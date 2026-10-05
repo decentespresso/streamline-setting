@@ -89,10 +89,12 @@ async function fetchSrc(tag) {
   }
 
   // --strip-components=1 drops the `<owner>-<repo>-<sha>/` wrapper GitHub adds.
-  // Only src/ is extracted: the rest of the repo is ~5 MB this never reads.
+  // ponytail: extract the whole tree (~5 MB). Filtering to src/ needs a member
+  // pattern that differs between bsdtar (macOS) and GNU tar (CI), and the copy
+  // step below only ever reads src/ anyway.
   mkdirSync(join(dir, "tree"), { recursive: true });
-  execFileSync("tar", ["xzf", tarball, "-C", join(dir, "tree"), "--strip-components=1",
-                       "--include=*/src/*"], { stdio: "inherit" });
+  execFileSync("tar", ["xzf", tarball, "-C", join(dir, "tree"), "--strip-components=1"],
+               { stdio: "inherit" });
 
   const src = join(dir, "tree", "src");
   if (!existsSync(src)) die(`${tag}: no src/ in the release tarball`);
