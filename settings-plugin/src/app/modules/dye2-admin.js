@@ -7,7 +7,7 @@
 //
 // It talks to Decaid's /plugins REST surface, which the plugin page reaches the
 // same way the skin does.
-import { getPlugins, installPluginFromRelease, enablePlugin, checkPluginUpdates, approvePluginUpdate } from './api.js';
+import { getPlugins, installPluginFromRelease, enablePlugin, checkPluginUpdates, approvePluginUpdate, getWorkflow, updateWorkflow } from './api.js';
 import { logger } from './logger.js';
 
 // From dyeStrip.js's header (outside the extracted range).
@@ -265,4 +265,39 @@ function promptPluginUpdate(info) {
         });
         dlg.showModal();
     });
+}
+
+// ─── Workflow context hygiene ─────────────────────────────────────────────────
+// Verbatim from dyeStrip.js (v0.2.7): the Settings toggle clears the bean/equipment
+// identity DYE2 left on the workflow when it is switched off.
+const DYE_CONTEXT_FIELDS = {
+    beanBatchId: null, coffeeName: null, coffeeRoaster: null,
+    grinderId: null, grinderModel: null,
+    baristaName: null, drinkerName: null,
+    extras: { basketId: null, basketName: null, rpm: null, note: null },
+};
+
+function hasDyeContext(context, includeGrinderSetting = false) {
+    if (!context) return false;
+    const extras = context.extras || {};
+    const top = Object.keys(DYE_CONTEXT_FIELDS).filter(k => k !== 'extras');
+    if (includeGrinderSetting) top.push('grinderSetting');
+    return top.some(k => context[k] != null)
+        || Object.keys(DYE_CONTEXT_FIELDS.extras).some(k => extras[k] != null);
+}
+
+export async function clearDyeWorkflowContext({ includeGrinderSetting = false } = {}) {
+    try {
+        const live = await getWorkflow();
+        if (!hasDyeContext(live?.context, includeGrinderSetting)) return false;
+        const context = { ...DYE_CONTEXT_FIELDS };
+        if (includeGrinderSetting) context.grinderSetting = null;
+        await updateWorkflow({ context });
+        logger.info('dye2-admin: cleared stale DYE2 workflow context');
+        return true;
+    } catch (err) {
+        // Cleanup is hygiene, never the point of the call that triggered it.
+        logger.warn('Failed to clear DYE2 workflow context:', err);
+        return false;
+    }
 }
