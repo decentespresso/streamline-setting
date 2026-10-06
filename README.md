@@ -16,23 +16,143 @@ Modelled on the `dye2` plugin's structure.
 See [PORT_PLAN.md](PORT_PLAN.md) for the design and the phase breakdown, and
 [skin-integration/](skin-integration/) for the optional Streamline-side wiring.
 
-## Using it with another skin
+## Integrating with your own skin
 
-The plugin is self-contained. It serves a complete page at
-`/api/v1/plugins/streamline-settings.reaplugin/ui`, talks to the bridge
-itself, and carries its own palette, fonts and libraries — it needs nothing from
-the skin that opens it.
+The plugin is self-contained: it serves a complete page, talks to Decaid
+itself, and ships its own palette (`skin-vars.css`), fonts and libraries, so it
+needs nothing from the skin that opens it. Integrating means two things: opening
+it, and optionally reacting to what the user changed.
 
-A skin opens it the way Streamline opens DYE2: an iframe (or a plain navigation)
-pointing at that URL, with `?return=<url>` so the page knows where to go when the
-user hits Cancel or Save.
+Machine settings (calibration, steam, hot water, firmware…) apply to the machine
+and work with any skin. Preferences that belong to a *skin* (theme, zoom,
+language, temperature unit) are only stored; they take effect when the skin
+reads them.
 
-Machine settings apply to the machine and work with any skin. Preferences that
-belong to a *skin* — theme, zoom, language, temperature unit — are written to
-Decaid's KV store under `streamlineSettings`, and the page posts
-`{type:'streamline:settings-changed', keys:[…]}` to its parent frame on exit. A
-skin that wants to react can listen; one that does not can ignore it, and nothing
-breaks.
+### Checklist
+
+- [ ] Install the plugin (see [Install](#install)).
+- [ ] Open `<API_BASE>/plugins/streamline-settings.reaplugin/ui?return=<encoded URL>`
+      from your settings button.
+- [ ] Same origin as Decaid: show it in a full-screen iframe and close it when
+      the frame reaches the sentinel URL. Different origin: navigate the whole
+      page instead, with `return` set to the current URL.
+- [ ] Do not draw a close bar. The plugin has its own Cancel / Save header.
+- [ ] Optional: apply changes live (below). Skipping it is safe; the values are
+      already in the KV store and land on the skin's next boot.
+- [ ] Optional: read the `streamlineSettings` KV namespace on boot, if you want
+      the skin to honour theme and the other preferences.
+
+### URL and parameters
+
+| Item | Value |
+|---|---|
+| Page | `<API_BASE>/plugins/streamline-settings.reaplugin/ui` |
+| `API_BASE` | `http://<decaid-host>:8080/api/v1` (8080 is the port the dev tooling here assumes) |
+| `?return=` | `encodeURIComponent(url)`. Where Cancel / Save sends the user. Without it the plugin navigates to Decaid's WebUI at `http://<host>:3000/` (hard-coded as `SKIN_PORT` in `return-to-skin.js`), which redirects to the active skin. Always pass it when you iframe the plugin: without it the *frame* goes to `:3000`, the skin loads inside its own overlay, and the overlay never closes. |
+| Endpoint name | `ui`, not `settings`: Decaid reserves `/plugins/{id}/settings` for its own route, so a plugin endpoint of that name never gets the request. |
+| Origin | Served by Decaid, so it always talks to the Decaid that served it (`api-base.js` uses `location.origin`). |
+
+### How the return works
+
+- **Same origin** (skin page and plugin share scheme, host and port): use a fixed full-screen iframe
+  (`z-index: 9999`, `background: var(--bgmain-color)`). Pass a sentinel, a skin
+  page URL such as `${origin}${pathname}?settingsReturn=1`, as `return`. On the
+  iframe's `load`, read `contentWindow.location.href` inside try/catch; if it
+  contains the sentinel, close the overlay (and refresh whatever needs it).
+  The sentinel page loads inside the iframe before `load` fires; have your
+  skin bail out early when its URL has `settingsReturn=1` and
+  `window !== window.top`, or point `return` at a tiny static page you serve.
+- **Cross origin** (for example a skin on `:3000` or a dev skin on `:8000`, with Decaid's API on `:8080`):
+  the iframe is blocked, so navigate the page with `return` set to the current
+  `location.href`. The plugin sends the user back there.
+
+```js
+const API_BASE = `http://${location.hostname}:8080/api/v1`; // your Decaid; `${location.origin}/api/v1` if the skin shares its origin
+const PLUGIN_URL = `${API_BASE}/plugins/streamline-settings.reaplugin/ui`;
+const sameOrigin = new URL(PLUGIN_URL, location.href).origin === location.origin;
+
+function openSettings() {
+  if (!sameOrigin) {
+    location.href = `${PLUGIN_URL}?return=${encodeURIComponent(location.href)}`;
+    return;
+  }
+  const sentinel = `${location.origin}${location.pathname}?settingsReturn=1`;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:var(--bgmain-color,#fff)';
+  const frame = document.createElement('iframe');
+  frame.style.cssText = 'width:100%;height:100%;border:0;display:block';
+  frame.addEventListener('load', () => {
+    let href = '';
+    try { href = frame.contentWindow.location.href; } catch { return; } // cross-origin
+    if (href.includes('settingsReturn=1')) overlay.remove();
+  });
+  frame.src = `${PLUGIN_URL}?return=${encodeURIComponent(sentinel)}`;
+  overlay.append(frame);
+  document.body.append(overlay);
+}
+```
+
+A fuller version (overlay reuse, `closeSettings`, live-apply) is in
+[skin-integration/settings-plugin.js](skin-integration/settings-plugin.js); copy
+it as a starting point. Its wiring steps in
+[skin-integration/README.md](skin-integration/README.md) name Streamline's own
+files (`app.js`, `profile_selector.js`, `router.js`), so for another skin use the
+checklist above instead. `settings-plugin.js` is modelled on `openPluginOverlay` in
+`src/modules/dyeStrip.js` of
+[streamline-js](https://github.com/decentespresso/streamline-js). `dye2` is a
+Decaid *plugin*, not a skin, so it is a reference for plugin structure
+(`manifest.json` + `plugin.js`, one `api[]` entry per route, routes at
+`/api/v1/plugins/<id>/<api-id>`), not for skin wiring.
+
+### Live-applying changes (optional)
+
+On exit the plugin posts `{ type: 'streamline:settings-changed', keys: [...] }`
+to `window.parent`, with targetOrigin `'*'`. The payload is key names only, so
+the skin has to re-read the values:
+
+1. Accept the message only if `event.source === iframe.contentWindow`. Bind the
+   `message` listener once for the page, not per open. Give the iframe an id (or
+   keep a module-level reference) so the listener can find it; the message
+   arrives as the frame navigates away.
+2. Re-read the keys from the Decaid KV namespace `streamlineSettings`:
+   `GET /api/v1/store/streamlineSettings/<key>`, or the whole namespace with
+   `GET /api/v1/store/streamlineSettings?full=1`.
+3. Apply them.
+
+It lists synced keys written during the session (a value may be unchanged), is
+sent on Cancel as well as Save, and is not sent if nothing was written. With a
+full-page navigation there is no parent listening, so the message goes nowhere.
+Ignoring it is safe.
+
+Keys mirrored to `streamlineSettings` (`SYNCED_KEYS` in `modules/settingsSync.js`):
+
+| Group | Keys |
+|---|---|
+| Display | `language`, `theme`, `uiZoom`, `maxStretch`, `chartLineWidth`, `tempUnit`, `waterTankUnit`, `waterRefillLevel` |
+| Screen and wake | `screensaverEnabled`, `screensaverCycleSeconds`, `blackScreenSaver`, `wakeLockEnabled`, `wakeProfileEnabled`, `wakeProfileId` |
+| Help | `streamlineHelpHidden`, `streamlineHelpLaunches` |
+| Input | `keyboardBindings` |
+| Last-used | `lastGrinderSetting`, `lastTargetDoseWeight` |
+| Streamline | `streamline.steamStopMode`, `streamline.steamStopModeFallback`, `streamline.cupWarmerTarget`, `streamline.dye2Enabled`, `streamline.dyeStripMode`, `streamline.ecoSteam`, `streamline.ledSequences`, `streamline.settings.location` |
+| Visualizer | `visualizerEnabled`, `visualizerAutoUpload` |
+
+The values are the strings the settings page keeps in `localStorage`; the sync
+code compares them with `String(value)`. `theme` is `light` or `dark`, set as
+the `data-theme` attribute on `<html>`. Other formats (for example the JSON in
+`keyboardBindings`) are defined by the vendored settings code, so treat that as
+the reference. `reaHostname` and Visualizer credentials are deliberately not
+mirrored.
+
+### Skins other than Streamline
+
+Streamline hydrates from `streamlineSettings` on boot by itself. Any other skin
+must implement its own KV reader for that namespace and decide which keys it
+honours; nothing in the plugin changes your skin.
+The plugin carries its own copy of
+Streamline's palette (`--bgmain-color`, `--mimoja-blue`, `--box-color`,
+`--text-primary`) and picks light or dark from the synced `theme` key, not from
+your CSS. Only the overlay backdrop uses your `--bgmain-color`, so set that to
+avoid a flash while the frame loads.
 
 ## Layout
 
@@ -125,4 +245,8 @@ See [skin-integration/README.md](skin-integration/README.md#canon).
 
 `streamline-settings.reaplugin/` is the build output and is committed. Decaid installs it
 from a GitHub release (`.github/workflows/release.yml` builds, tests, validates
-and publishes on a `v*` tag), or from a branch checkout.
+and publishes on a `v*` tag), or from a branch checkout. The release asset is
+`streamline-settings.reaplugin-<tag>.zip`, with the `streamline-settings.reaplugin/`
+folder as its top-level entry. The folder name must stay
+`streamline-settings.reaplugin`: Decaid uses it to recognise the plugin, and
+renaming makes it uninstallable.

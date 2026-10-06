@@ -6,13 +6,14 @@
 // URL on the skin that the parent frame watches for (it closes the overlay and
 // refreshes), and in dev, where the iframe is cross-origin and blocked, it is the
 // skin page itself and this is a full-page navigation back to it.
+//
+// With no ?return= (opened directly, or a reload that dropped the param), go to
+// Decaid's WebUI on :3000, whose `/` redirects to the active skin. Same fallback as
+// Decaid's own "Decent Settings" back-link, and same shape as dye2: ?return= if
+// given, else a fixed route. Never history.back().
+const SKIN_PORT = 3000;
+
 export function returnToSkin() {
     const url = new URLSearchParams(window.location.search).get('return');
-    if (url) {
-        window.location.href = url;
-        return true;
-    }
-    // Opened directly (dev server, or a page reload that dropped the param) —
-    // there is nowhere to go back to, so stay put rather than break out.
-    return false;
+    window.location.href = url || `${window.location.protocol}//${window.location.hostname}:${SKIN_PORT}/?_=${Date.now()}`;
 }
