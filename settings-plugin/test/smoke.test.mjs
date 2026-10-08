@@ -135,7 +135,8 @@ console.log('smoke test passed');
     i = end + 2;
   }
   for (const sel of ['.btn', '.checkbox', '.input', '.modal', '.modal-box', '.modal-action', '.loading']) {
-    assert.match(stripped, new RegExp(`(^|\\})\\s*\\${sel}\\s*\\{`),
+    // `:where(.x)` is the same rule at zero specificity (see daisy-shim.css)
+    assert.match(stripped, new RegExp(`(^|\\})\\s*(:where\\()?\\${sel}\\)?\\s*\\{`),
       `${sel} must survive CSS comment stripping`);
   }
 

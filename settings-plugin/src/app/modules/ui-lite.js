@@ -11,31 +11,53 @@
 import { logger } from './logger.js';
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
-// The skin's showToast drives #app-toast, markup that lives in its index.html.
-// The plugin has no such element, so the toast builds and owns its own.
+// The skin's showToast drives #app-toast, markup that lives in its index.html: a
+// daisyUI `toast toast-center` holding an `alert alert-<type>`, bottom-centred and
+// OUTSIDE its scaled canvas, so it is real screen pixels (22px text) at any scale.
+// The plugin has no such element, so it builds the same thing from the values
+// measured on the skin, and mounts it on <html> rather than <body>: <body> carries
+// the fit script's transform, which would scale the toast with the page.
 
 let toastHideTimer = null;
 let toastEl = null;
+let alertEl = null;
+let messageEl = null;
 
-const TOAST_COLORS = {
-    info: 'var(--mimoja-blue)',
-    success: '#0ca581',
-    error: '#c0392b',
-    alert: '#c0392b',
+// daisyUI light theme's alert colours (the skin has no dark override).
+const ALERT_STYLES = {
+    info: { background: '#00b5ff', color: '#000' },
+    success: { background: '#00a96e', color: '#000' },
+    error: { background: '#ff5861', color: '#000' },
 };
+// `alert-<type>` for any other type is not a daisyUI class, so the skin shows the
+// plain alert: base-200 with base content.
+const ALERT_NEUTRAL = { background: 'var(--base-200)', color: '#1f2937' };
 
 function ensureToast() {
     if (toastEl && toastEl.isConnected) return toastEl;
     toastEl = document.createElement('div');
     toastEl.id = 'app-toast';
-    // Fixed, so it is positioned against the scaled <body> the fit script sets up
-    // (a transformed element is the containing block for its fixed descendants),
-    // which puts it in design pixels like everything else on the page.
     toastEl.style.cssText =
-        'position:fixed;left:50%;bottom:48px;transform:translateX(-50%);z-index:10000;' +
-        'display:none;padding:18px 36px;border-radius:12px;color:#fff;font-size:24px;' +
-        'font-weight:600;max-width:1200px;text-align:center;pointer-events:none;';
-    document.body.appendChild(toastEl);
+        'position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:10001;' +
+        'display:none;padding:16px;max-width:calc(100vw - 32px);pointer-events:none;';
+    alertEl = document.createElement('div');
+    // daisyUI's .alert: a two-column grid (the empty second column and its gap are part
+    // of the skin's measured width), a 1px border, and the pop-in from app.css.
+    alertEl.style.cssText =
+        'display:grid;grid-auto-flow:column;grid-template-columns:auto minmax(auto,1fr);' +
+        'align-items:center;justify-items:start;text-align:start;gap:16px;padding:16px;' +
+        'border:1px solid transparent;border-radius:16px;';
+    messageEl = document.createElement('span');
+    messageEl.id = 'app-toast-message';
+    messageEl.style.cssText =
+        "font-family:'Inter',sans-serif;font-size:22px;font-weight:400;line-height:33px;";
+    alertEl.appendChild(messageEl);
+    toastEl.appendChild(alertEl);
+    const keyframes = document.createElement('style');
+    keyframes.textContent =
+        '@keyframes toast-pop{0%{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}';
+    toastEl.appendChild(keyframes);
+    document.documentElement.appendChild(toastEl);
     return toastEl;
 }
 
@@ -44,13 +66,19 @@ export function showToast(message, duration = 2400, type = 'info') {
     clearTimeout(toastHideTimer);
     toastHideTimer = null;
 
-    el.textContent = message;
-    el.style.background = TOAST_COLORS[type] || TOAST_COLORS.info;
+    messageEl.textContent = message;
+    const look = ALERT_STYLES[type] || ALERT_NEUTRAL;
+    alertEl.style.background = look.background;
+    alertEl.style.color = look.color;
     // Errors interrupt; everything else is announced politely.
     const assertive = type === 'error' || type === 'alert';
     el.setAttribute('role', assertive ? 'alert' : 'status');
     el.setAttribute('aria-live', assertive ? 'assertive' : 'polite');
-    el.style.display = 'block';
+    el.style.display = 'grid';
+    // Restart the pop-in for every toast, not just the first.
+    alertEl.style.animation = 'none';
+    void alertEl.offsetWidth;
+    alertEl.style.animation = 'toast-pop .25s ease-out';
 
     if (duration > 0) {
         toastHideTimer = setTimeout(() => {
