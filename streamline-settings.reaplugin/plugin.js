@@ -733,7 +733,7 @@ var createPlugin = (function() {
 	//#endregion
 	//#region src/plugin.ts
 	var PLUGIN_ID = "streamline-settings.reaplugin";
-	var PLUGIN_VERSION = "0.1.1";
+	var PLUGIN_VERSION = "0.1.2";
 	function createPlugin(host) {
 		function log(msg) {
 			host.log(`[settings] ${msg}`);
