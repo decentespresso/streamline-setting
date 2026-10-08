@@ -25,7 +25,7 @@ function mainCategoryNav(): string {
     .map(([id, category]: [string, any], index) => {
       const label = category.i18nKey || category.name;
       return html`<li>
-        <button id="${escapeHtml(id)}-btn" class="${NAV_BTN_CLASS}">${index + 1}.&nbsp;<span
+        <button id="${escapeHtml(id)}-btn" class="${NAV_BTN_CLASS}">${index + 1}. <span
             data-i18n-key="${escapeHtml(label)}">${escapeHtml(category.name)}</span></button>
       </li>`;
     })
