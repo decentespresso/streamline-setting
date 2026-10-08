@@ -13,6 +13,7 @@ import iroSource from "../vendor/iro.min.js?raw";
 import easymdeSource from "../vendor/easymde.min.js?raw";
 import easymdeCss from "../vendor/easymde.min.css?raw";
 import easymdeIconsCss from "../vendor/easymde-icons.css?raw";
+import notesModalCss from "../vendor/notes-modal.css?raw";
 
 // Pinned vendored files that change only when the plugin is rebuilt, so the
 // WebView may keep them rather than re-fetching a third of a megabyte.
@@ -48,4 +49,9 @@ export function renderEasyMdeCss(request: HttpRequest): HttpResponse {
 /** Font Awesome subset for EasyMDE's toolbar; the woff2 is inlined as a data URI. */
 export function renderEasyMdeIconsCss(request: HttpRequest): HttpResponse {
   return asset(request, "text/css; charset=utf-8", easymdeIconsCss);
+}
+
+/** Styles for the notes modal; loaded by modules/notes-modal.js. */
+export function renderNotesModalCss(request: HttpRequest): HttpResponse {
+  return asset(request, "text/css; charset=utf-8", notesModalCss);
 }

@@ -47,6 +47,11 @@
       "id": "easymde-icons.css",
       "type": "http",
       "data": {}
+    },
+    {
+      "id": "notes-modal.css",
+      "type": "http",
+      "data": {}
     }
   ]
 }

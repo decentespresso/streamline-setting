@@ -3,7 +3,7 @@
 // The port's own edits to this file live as patches in sync-upstream.mjs.
 import { loadEasyMDE, loadStyle } from './vendor-loader.js';
 
-loadStyle('src/css/notes-modal.css').catch(() => {});
+loadStyle('notes-modal.css').catch(() => {});
 
 // ─── Notes Modal ───────────────────────────────────────────────────────────
 // Full-screen markdown editor modal using EasyMDE.
