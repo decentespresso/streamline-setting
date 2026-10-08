@@ -250,3 +250,39 @@ and publishes on a `v*` tag), or from a branch checkout. The release asset is
 folder as its top-level entry. The folder name must stay
 `streamline-settings.reaplugin`: Decaid uses it to recognise the plugin, and
 renaming makes it uninstallable.
+
+## Releasing
+
+**The git tag is the version.** Never hand-bump ahead of a tag; the workflow sets
+the version from the tag itself.
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+`.github/workflows/release.yml` then:
+
+1. Rewrites `manifest.src.json` `.version` and `package.json` / `package-lock.json`
+   to the tag minus its `v` (the middleware reads the version from `package.json`).
+2. Builds (`npm ci && npm run build`) and runs `npm test`.
+3. Validates the output: both files non-empty, `id` matches, `apiVersion` and
+   `version` present, `plugin.js` contains `createPlugin`.
+4. Zips with `streamline-settings.reaplugin/` as the top-level entry and publishes
+   `streamline-settings.reaplugin-vX.Y.Z.zip` to Releases.
+
+Pushes to `main` run the same build, test and validate steps and upload the output as
+a build artifact. A manual run (`workflow_dispatch`) does the same.
+
+Two rules the workflow can't enforce for you:
+
+- **Commit the rebuilt `streamline-settings.reaplugin/`.** Decaid can install straight
+  from the `main` branch, so the committed output must be real. A push to `main`
+  whose committed build differs from a clean build raises a CI warning.
+- **Keep the branch head at or above the latest tag.** Decaid refuses any install that
+  would downgrade an existing one unless downgrades are explicitly allowed. After
+  tagging, bring `main`'s `manifest.src.json` version up to the released version, run
+  `npm version --no-git-tag-version X.Y.Z` in `settings-plugin`, rebuild and commit.
+  This is the one bump you make by hand, and it follows the tag rather than leading it.
+
+Skin bumps from `npm run watch:sync` reach users the same way: merge the PR, then tag.
