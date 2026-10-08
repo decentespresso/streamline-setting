@@ -1,6 +1,6 @@
 {
   "name": "@streamline/settings-plugin",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "description": "Streamline Settings plugin for Decent Espresso (Decaid)",
   "type": "module",
