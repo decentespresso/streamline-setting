@@ -9,29 +9,47 @@ import skinVars from "../styles/skin-vars.css?inline";
 import daisyShim from "../styles/daisy-shim.css?inline";
 
 // Pages are authored at a fixed 1920x1200 design reference (the Figma canvas at 75%,
-// 16:10 like the tablet). Ported from streamline_project/src/modules/scaling.js:
-// scale x and y independently instead of a uniform min(w,h) zoom, so a non-16:10
-// screen (e.g. an 8" tablet at 1340x800) fills edge-to-edge instead of leaving thick
-// letterbox gutters. The stretch ratio is clamped at 1.15 so round controls don't
-// become visible ellipses on far-off aspects; 16:10 screens are unaffected either way.
+// 16:10 like the tablet). Ported from streamline_project/src/modules/scaling.js and
+// kept in step with it:
+//   - taller than 16:10: keep the scale uniform and GROW the canvas past 1200 design
+//     rows; the page's flex body absorbs the extra rows. No stretch, no letterbox.
+//   - shorter than 16:10: squash x/y independently, clamped to localStorage
+//     'maxStretch' (default 1.0 = letterbox, as in the skin).
+//   - localStorage 'uiZoom' (Settings > Text Size) multiplies the scale, capped at 2.
+// maxStretch and uiZoom reach this origin through prefs.js's KV hydrate.
 // Transform (not zoom) is applied to <body> itself — a transformed element becomes the
 // containing block for its position:fixed descendants, so modal overlays (which are
 // siblings of the page's root div, both direct children of body) scale correctly too.
 const fitScript = `
 (function () {
   var DESIGN_W = 1920, DESIGN_H = 1200;
-  var MAX_STRETCH = 1.15;
+  function pref(key) {
+    try { return parseFloat(localStorage.getItem(key)) || 0; } catch (e) { return 0; }
+  }
   function fit(vw, vh) {
-    var sx = vw / DESIGN_W, sy = vh / DESIGN_H;
-    var stretch = Math.max(sx, sy) / Math.min(sx, sy);
-    if (stretch > MAX_STRETCH) {
-      var k = MAX_STRETCH / stretch;
-      if (sx > sy) { sx *= k; } else { sy *= k; }
+    var sx = vw / DESIGN_W, sy = vh / DESIGN_H, canvasH = DESIGN_H;
+    if (vh / sx >= DESIGN_H) {
+      sy = sx;
+      canvasH = vh / sx;
+    } else {
+      var maxStretch = pref('maxStretch') || 1.0;
+      var stretch = Math.max(sx, sy) / Math.min(sx, sy);
+      if (stretch > maxStretch) {
+        var k = maxStretch / stretch;
+        if (sx > sy) { sx *= k; } else { sy *= k; }
+      }
     }
-    var offsetX = (vw - DESIGN_W * sx) / 2;
-    var offsetY = (vh - DESIGN_H * sy) / 2;
+    var zoom = pref('uiZoom') || 1.0;
+    sx = Math.min(sx * zoom, 2);
+    sy = Math.min(sy * zoom, 2);
+    // Zoomed in, the page is larger than the screen: anchor top-left and let the
+    // document scroll (the skin does the same), instead of clipping all round.
+    var zoomed = zoom > 1.0;
+    var offsetX = zoomed ? 0 : (vw - DESIGN_W * sx) / 2;
+    var offsetY = zoomed ? 0 : (vh - canvasH * sy) / 2;
+    document.documentElement.style.overflow = zoomed ? 'auto' : '';
     document.body.style.width = DESIGN_W + 'px';
-    document.body.style.height = DESIGN_H + 'px';
+    document.body.style.height = canvasH + 'px';
     document.body.style.transformOrigin = 'top left';
     document.body.style.transform =
       'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + sx + ', ' + sy + ')';
@@ -52,10 +70,15 @@ const fitScript = `
   // keyboard can shrink the viewport but never widen or grow it. So: a width change is a
   // real resize (rotation), a taller viewport means the keyboard went away, and a
   // same-width-but-shorter viewport is the keyboard and gets ignored. No focus, no timers.
-  var fitW = 0, fitH = 0;
+  // A synthetic resize (Settings > Text Size dispatches one) changes no dimension, so
+  // the prefs that feed fit() take part in the "did anything change" test too.
+  var fitW = 0, fitH = 0, fitPrefs = '';
   function apply() {
     var vw = window.innerWidth, vh = window.innerHeight;
-    if (vw !== fitW || vh > fitH) { fitW = vw; fitH = vh; fit(vw, vh); }
+    var prefs = pref('uiZoom') + '|' + pref('maxStretch');
+    if (vw !== fitW || vh > fitH || prefs !== fitPrefs) {
+      fitW = vw; fitH = vh; fitPrefs = prefs; fit(vw, vh);
+    }
   }
   apply();
   window.addEventListener('resize', apply);
