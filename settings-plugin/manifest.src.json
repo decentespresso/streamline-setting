@@ -52,6 +52,11 @@
       "id": "notes-modal.css",
       "type": "http",
       "data": {}
+    },
+    {
+      "id": "inter.css",
+      "type": "http",
+      "data": {}
     }
   ]
 }

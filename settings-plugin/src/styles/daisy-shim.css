@@ -6,6 +6,12 @@
    If a category starts using a new daisyUI class, add it here; `npm run
    audit:daisy` lists what the ported markup references. */
 
+/* ── base text colour ─────────────────────────────────────────────────────── */
+/* daisyUI's light theme colours the document with its base-content (a slate, not
+   black), and everything without its own text colour inherits it. Dark mode sets
+   its own body colour in skin-vars.css, which wins on specificity. */
+body { color: #1f2937; }
+
 /* ── .btn ─────────────────────────────────────────────────────────────────── */
 .btn {
     display: inline-flex;

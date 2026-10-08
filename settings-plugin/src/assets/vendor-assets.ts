@@ -13,6 +13,7 @@ import iroSource from "../vendor/iro.min.js?raw";
 import easymdeSource from "../vendor/easymde.min.js?raw";
 import easymdeCss from "../vendor/easymde.min.css?raw";
 import easymdeIconsCss from "../vendor/easymde-icons.css?raw";
+import interCss from "../vendor/inter.css?raw";
 import notesModalCss from "../vendor/notes-modal.css?raw";
 
 // Pinned vendored files that change only when the plugin is rebuilt, so the
@@ -54,4 +55,9 @@ export function renderEasyMdeIconsCss(request: HttpRequest): HttpResponse {
 /** Styles for the notes modal; loaded by modules/notes-modal.js. */
 export function renderNotesModalCss(request: HttpRequest): HttpResponse {
   return asset(request, "text/css; charset=utf-8", notesModalCss);
+}
+
+/** Inter @font-face rules (400/500/600/700, inlined); linked from the page head. */
+export function renderInterCss(request: HttpRequest): HttpResponse {
+  return asset(request, "text/css; charset=utf-8", interCss);
 }

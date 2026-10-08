@@ -186,7 +186,7 @@ function handlePluginPage(endpoint, req, res) {
 
 // Must match manifest.src.json. "ui" rather than "settings" — Decaid reserves
 // /plugins/{id}/settings for its own settings API (see src/plugin.ts).
-const PLUGIN_ROUTES = ["ui", "app", "i18n.csv", "iro", "easymde", "easymde.css", "easymde-icons.css", "notes-modal.css"];
+const PLUGIN_ROUTES = ["ui", "app", "i18n.csv", "iro", "easymde", "easymde.css", "easymde-icons.css", "inter.css", "notes-modal.css"];
 
 const server = createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);

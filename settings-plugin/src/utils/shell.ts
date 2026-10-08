@@ -191,6 +191,8 @@ export function pageShell(
   <!-- interactive-widget=overlays-content: on-screen keyboard overlays the page instead of resizing/shrinking it -->
   <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=overlays-content" />
   <title>Settings - ${title}</title>
+  ${/* Inter, as the skin ships it. Page-relative, like "app": a route of this plugin. */ ""}
+  <link rel="stylesheet" href="inter.css" />
   <style>${tailwindCss}</style>
   <style>${skinVars}${daisyShim}${cssVarFallbacks()}${styles}</style>
   ${/* Ported from the skin's index.html, which applies the stored theme before
