@@ -285,4 +285,24 @@ Two rules the workflow can't enforce for you:
   `npm version --no-git-tag-version X.Y.Z` in `settings-plugin`, rebuild and commit.
   This is the one bump you make by hand, and it follows the tag rather than leading it.
 
-Skin bumps from `npm run watch:sync` reach users the same way: merge the PR, then tag.
+### Skin releases are automatic
+
+`.github/workflows/upstream-watch.yml` runs daily. When a new `decentespresso/streamline-js`
+release changes the vendored settings code it:
+
+1. syncs the files, bumps the manifest and `package.json` to the next patch version, then builds
+   and runs `npm test`;
+2. opens a PR, squash-merges it (the PR stays as the record), tags the merge commit
+   and runs `release.yml` against the tag, which publishes the zip.
+
+Because the version is bumped before the tag, `main` is never below the latest release and
+there is no manual catch-up commit on this path.
+
+Nothing is merged or released if anything fails. The job opens (or comments on) an issue
+labelled `upstream-sync-failed`, and a tag build that fails opens a `release-failed` issue.
+`test/routes.test.mjs` is the contract that catches what a sync most often breaks: the
+three route lists disagreeing, a route not serving, or vendored code loading an asset path
+the plugin has no route for. A manual run pinned to a tag (`workflow_dispatch` with `tag`)
+opens the PR only and never releases.
+
+Hand-made releases (your own changes) still follow the steps above: tag, then bump.

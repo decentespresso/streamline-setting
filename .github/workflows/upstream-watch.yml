@@ -20,12 +20,16 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
+  issues: write
 
 jobs:
   watch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -53,6 +57,25 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # An upstream-driven sync ships as the next patch release. The version goes in
+      # before the build so the committed output carries it, and main never sits below
+      # the tag we are about to push. A manual run pinned to a tag (inputs.tag) only
+      # opens the PR: pulling an older skin must not publish a release by itself.
+      - name: Bump to the next patch version
+        id: version
+        if: steps.sync.outputs.changed == 'true' && inputs.tag == ''
+        run: |
+          set -euo pipefail
+          latest=$(git tag -l 'v[0-9]*' --sort=-v:refname | head -1)
+          latest=${latest:-v0.0.0}
+          IFS=. read -r major minor patch <<< "${latest#v}"
+          next="$major.$minor.$((patch + 1))"
+          jq --arg v "$next" '.version = $v' settings-plugin/manifest.src.json > manifest.tmp
+          mv manifest.tmp settings-plugin/manifest.src.json
+          (cd settings-plugin && npm version --no-git-tag-version --allow-same-version "$next")
+          echo "next=v$next" >> "$GITHUB_OUTPUT"
+          echo "Releasing $latest -> v$next"
+
       # The point of the PR is that a human reviews a *working* sync, so the
       # build and the tests gate it rather than running after the merge.
       - name: Build and test
@@ -61,6 +84,7 @@ jobs:
         run: npm ci && npm run build && npm test
 
       - name: Open a pull request
+        id: pr
         if: steps.sync.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
@@ -79,12 +103,48 @@ jobs:
           add-paths: |
             settings-plugin/src/
             settings-plugin/upstream.json
+            settings-plugin/manifest.src.json
+            settings-plugin/package.json
+            settings-plugin/package-lock.json
             streamline-settings.reaplugin/
+
+      # Build and tests already passed above, so the PR is merged straight away; it stays
+      # as the record of what was pulled in. A tag pushed (or a PR merged) with the
+      # default token does not start other workflows, so release.yml is dispatched
+      # explicitly against the tag; workflow_dispatch is exempt from that rule.
+      - name: Merge, tag and release
+        if: steps.version.outputs.next != '' && steps.pr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.pr.outputs.pull-request-number }}
+          TAG: ${{ steps.version.outputs.next }}
+        run: |
+          set -euo pipefail
+          gh pr merge "$PR" --squash --delete-branch
+          sha=$(gh pr view "$PR" --json mergeCommit --jq .mergeCommit.oid)
+          git tag "$TAG" "$sha"
+          git push origin "$TAG"
+          gh workflow run release.yml --ref "$TAG"
+          echo "Released $TAG from $sha"
 
       # A patch anchor that no longer matches means the port's edits could not be
       # re-applied. The sync exits non-zero and the job fails — which is the point:
       # a silent drop would ship skin code with the port's changes missing.
       - name: Report a failed sync
         if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           echo "::error::Upstream sync failed — see the step log above for the real cause. The usual one is a patch anchor in sync-upstream.mjs that no longer matches the skin; re-anchor it and re-run."
+          # Nothing was merged, tagged or released. Open one issue and comment on it
+          # while it stays open, so a daily failure does not pile up duplicates.
+          title="Upstream skin sync failed (no release published)"
+          body=$(printf 'The daily upstream sync failed, so **no PR was merged and no release was published**.\n\nRun: %s\n\nLast lines of the sync log:\n\n```\n%s\n```\n' "$RUN_URL" "$(tail -n 40 settings-plugin/sync.log 2>/dev/null || echo '(no sync log: the failure was before or after the sync step)')")
+          gh label create upstream-sync-failed --color B60205 --description "Upstream skin sync or release failed" 2>/dev/null || true
+          existing=$(gh issue list --label upstream-sync-failed --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --label upstream-sync-failed --body "$body"
+          fi
