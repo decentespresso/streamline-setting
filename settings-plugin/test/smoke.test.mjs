@@ -28,7 +28,10 @@ const mockHost = {
 
 const plugin = context.createPlugin(mockHost);
 assert.equal(plugin.id, 'streamline-settings.reaplugin');
-assert.equal(plugin.version, '0.0.1');
+// CI stamps the tag version into manifest.src.json before building, so compare to that
+// rather than a literal that every release would break.
+const { version } = JSON.parse(readFileSync(resolve(__dirname, '../manifest.src.json'), 'utf-8'));
+assert.equal(plugin.version, version);
 
 plugin.onLoad({});
 assert.ok(logs.some((l) => l.includes('loaded')), 'onLoad should log something');
