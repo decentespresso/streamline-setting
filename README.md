@@ -5,7 +5,7 @@ Streamline's settings page as a standalone Decaid plugin.
 **What it is for:** running Streamline's settings with a different skin. If you
 like how Streamline handles machine settings — calibration, steam, hot water,
 maintenance, firmware, the lot — but want to use another skin day to day, install
-this and you get that settings page on its own, served by the bridge and opened
+this and you get that settings page on its own, served by Decaid and opened
 from whatever skin you run.
 
 It is a port, not a fork: the settings code is vendored from published releases
@@ -13,8 +13,85 @@ of [decentespresso/streamline-js](https://github.com/decentespresso/streamline-j
 and re-synced as new ones land, so it tracks upstream rather than drifting from it.
 Modelled on the `dye2` plugin's structure.
 
+**New here?** Start with the [Quick start](#quick-start). Writing a skin or an automation
+(human or AI agent)? [At a glance](#at-a-glance) has every URL, parameter and constant in
+one place, and [Verify your integration](#verify-your-integration) has commands with the
+output to expect.
+
 See [PORT_PLAN.md](PORT_PLAN.md) for the design and the phase breakdown, and
 [skin-integration/](skin-integration/) for the optional Streamline-side wiring.
+
+## Quick start
+
+Three steps. Replace `<decaid-host>` with the host Decaid runs on (`localhost` on the same
+machine); Decaid's API is on port 8080.
+
+**1. Install the plugin** with one call to Decaid's plugin API. Decaid then tracks this
+repo's releases and updates the plugin for you:
+
+```bash
+curl -X POST http://<decaid-host>:8080/api/v1/plugins/install/github-release \
+  -H 'content-type: application/json' \
+  -d '{"repo": "decentespresso/streamline-setting"}'
+```
+
+To run what is on `main` instead of the latest release (the committed build is kept
+current, so this works):
+
+```bash
+curl -X POST http://<decaid-host>:8080/api/v1/plugins/install/github-branch \
+  -H 'content-type: application/json' \
+  -d '{"repo": "decentespresso/streamline-setting", "branch": "main"}'
+```
+
+Or download `streamline-settings.reaplugin-<tag>.zip` from [Releases](../../releases)
+and install it from Decaid's Plugins screen.
+
+**2. Check it is loaded:**
+
+```bash
+curl -s http://<decaid-host>:8080/api/v1/plugins \
+  | jq '.[] | select(.id=="streamline-settings.reaplugin") | {id, version}'
+# { "id": "streamline-settings.reaplugin", "version": "0.1.x" }
+```
+
+**3. Open the page** in a browser:
+
+`http://<decaid-host>:8080/api/v1/plugins/streamline-settings.reaplugin/ui`
+
+That is the whole settings page, working. To open it from your own skin, see
+[Integrating with your own skin](#integrating-with-your-own-skin).
+
+## At a glance
+
+The facts, in one place. They come from the manifest, the code and a running Decaid. The
+install calls are from Decaid's own docs and were not run while writing this.
+
+```yaml
+plugin:
+  id: streamline-settings.reaplugin      # also the folder name; renaming it makes it uninstallable
+  repo: decentespresso/streamline-setting
+  release_asset: streamline-settings.reaplugin-<tag>.zip   # exactly one zip; plugin folder at its top level
+  permissions: [log, api, emit, pluginStorage]
+decaid:
+  api_base: http://<decaid-host>:8080/api/v1    # the host that serves the plugin
+  list_plugins:    GET  {api_base}/plugins
+  install_release: POST {api_base}/plugins/install/github-release   # {"repo": "decentespresso/streamline-setting"}
+  install_branch:  POST {api_base}/plugins/install/github-branch    # {"repo": "...", "branch": "main"}
+page:
+  url: "{api_base}/plugins/streamline-settings.reaplugin/ui"        # 200 text/html
+  query:
+    return: encodeURIComponent(url)   # where Cancel and Save navigate. Default: http://<host>:3000/ (Decaid's WebUI)
+  route_name: ui                      # "settings" is reserved by Decaid and cannot be used
+  internal_routes: [app, i18n.csv, iro, easymde, easymde.css, easymde-icons.css, notes-modal.css, inter.css]
+                                      # served for the page itself; you never call these
+on_exit:
+  post_message_to_parent:             # only when the page is inside an iframe
+    type: streamline:settings-changed
+    keys: [string]                    # key names only; targetOrigin '*'
+  kv_namespace: streamlineSettings    # GET {api_base}/store/streamlineSettings?full=1  -> flat JSON object of strings
+needs_from_your_skin: nothing         # opening it is all that is required; honouring saved preferences is optional
+```
 
 ## Integrating with your own skin
 
@@ -30,7 +107,7 @@ reads them.
 
 ### Checklist
 
-- [ ] Install the plugin (see [Install](#install)).
+- [ ] Install the plugin (see the [Quick start](#quick-start)).
 - [ ] Open `<API_BASE>/plugins/streamline-settings.reaplugin/ui?return=<encoded URL>`
       from your settings button.
 - [ ] Same origin as Decaid: show it in a full-screen iframe and close it when
@@ -63,7 +140,7 @@ reads them.
   skin bail out early when its URL has `settingsReturn=1` and
   `window !== window.top`, or point `return` at a tiny static page you serve.
 - **Cross origin** (for example a skin on `:3000` or a dev skin on `:8000`, with Decaid's API on `:8080`):
-  the iframe is blocked, so navigate the page with `return` set to the current
+  the iframe is blocked (Decaid sends `X-Frame-Options: SAMEORIGIN`), so navigate the page with `return` set to the current
   `location.href`. The plugin sends the user back there.
 
 ```js
@@ -154,21 +231,66 @@ Streamline's palette (`--bgmain-color`, `--mimoja-blue`, `--box-color`,
 your CSS. Only the overlay backdrop uses your `--bgmain-color`, so set that to
 avoid a flash while the frame loads.
 
+The page also behaves like Streamline's own: it scales the way the skin does (uniform
+scale, the canvas grows on screens taller than 16:10, `maxStretch` and `uiZoom` read
+from the synced store), and its toasts and dialogs are drawn to match the skin's.
+
+## Verify your integration
+
+Each check has an expected result, so a person or a script can run it. `B` is
+`http://<decaid-host>:8080/api/v1`.
+
+| # | Check | Expect |
+|---|---|---|
+| 1 | `curl -s $B/plugins \| jq -r '.[] \| select(.id=="streamline-settings.reaplugin") \| .version'` | a version such as `0.1.4` |
+| 2 | `curl -s -o /dev/null -w '%{http_code} %{content_type}' $B/plugins/streamline-settings.reaplugin/ui` | `200 text/html; charset=utf-8` |
+| 3 | `curl -s "$B/plugins/streamline-settings.reaplugin/ui" \| grep -c cancel-settings-btn` | `1` (the page has its own Cancel / Save header) |
+| 4 | Click your Settings button | the settings page, with no close bar of yours on top |
+| 5 | Click **Cancel** | the browser is on exactly the `return` URL you passed (iframe case: the overlay closes) |
+| 6 | Change a preference such as language, click **Save**, then `curl -s "$B/store/streamlineSettings?full=1"` | a flat JSON object that includes the key you changed, as a string |
+| 7 | Open the page with no `return` and click **Cancel** | you land on `http://<host>:3000/` (Decaid's WebUI), not on a blank page |
+
+Checks 1 to 3 and 6 are plain HTTP and work without a browser. Checks 4, 5 and 7 need a
+browser, or a headless one.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| The iframe stays blank, or the console says it refused to connect | Decaid sends `X-Frame-Options: SAMEORIGIN` on the page, so only a skin on the same origin as the API may frame it. A skin on `:3000` with the API on `:8080` is cross-origin | Do not iframe. Navigate the whole page: `location.href = PLUGIN_URL + '?return=' + encodeURIComponent(location.href)` |
+| After Save your skin appears *inside* the overlay and the overlay never closes | The iframe was opened without `return`, so the frame itself went to Decaid's WebUI | Always pass `return` when you iframe, and make it a same-origin URL of your skin |
+| Overlay never closes even though `return` was passed | The sentinel URL is not on your skin's origin, so reading `contentWindow.location` throws | Build the sentinel from `location.origin` and your own path |
+| `/plugins/streamline-settings.reaplugin/settings` returns JSON, not the page | Decaid reserves that path for the plugin's stored settings | Use the page route, `ui` |
+| Install is refused as a downgrade | Decaid will not install a lower version over a higher one | Remove the installed plugin first, then install |
+| Install says several `.zip` assets | A release carried more than one zip | Releases here carry exactly one; if you fork, keep it that way |
+| Red toast "App update checks are not supported on this build" on the Updates page | Decaid refuses update checks on macOS and App Store builds | Harmless: the update badge works regardless |
+| Errors such as `504` when reading calibration | Those settings come from the machine, and none is connected | Connect a machine; other settings still work |
+| Your skin ignores theme, text size or language | Those are only stored; your skin has to read them | Read `streamlineSettings` at boot ([Live-applying changes](#live-applying-changes-optional)) |
+
+## Working on the plugin
+
+Everything below is for people changing the plugin itself. If you only want to use it,
+you can stop here.
+
 ## Layout
 
 ```
 settings-plugin/          npm project — the source
   src/plugin.ts           host side: routes endpoints to pages and assets
   src/pages/settings.ts   the page shell (ported from settings.html)
-  src/utils/shell.ts      page chrome: 1920x1200 fit script, palette, reset
-  src/assets/             asset routes (app bundle, translations, iro, EasyMDE)
+  src/utils/shell.ts      page chrome: fit script (mirrors the skin's scaling), palette, reset
+  src/assets/             asset routes (app bundle, translations, iro, EasyMDE, Inter, notes CSS)
+  src/styles/             skin-vars.css (generated), daisy-shim.css, Tailwind input and output
   src/app/                the browser-side app — real ES modules
-    settings.js           the ported 9,862-line settings module
+    settings.js           the ported settings module
     settings-shell.js     nav, search, category loading, save/cancel
     prefs.js              skin-owned preferences <-> Decaid KV
-    modules/              ~7,400 lines vendored from the skin
-  src/vendor/             third-party + the translation sheet
-  test/                   node --test; suites ported from the skin
+    modules/              mostly vendored from the skin
+  src/vendor/             third-party files, the translation sheet, and the generated
+                          inter.css (the skin's Inter, inlined) and notes-modal.css
+  test/                   node --test: suites ported from the skin, plus
+                          routes (route contract), scaling and smoke tests
+.github/workflows/        release.yml (build + publish on a tag), upstream-watch.yml
 streamline-settings.reaplugin/       build output (committed): manifest.json + plugin.js
 skin-integration/         skin-side module + instructions (not applied)
 ```
@@ -183,12 +305,13 @@ template strings dye2 uses. See PORT_PLAN.md §2.
 ```
 npm run build        build:css -> build:app -> vite build   (in that order)
 npm run dev          both watchers
-npm run serve        dev server on :4555, proxies /api/* and /ws/* to the bridge
+npm run serve        dev server on :4555, proxies /api/* and /ws/* to Decaid
 npm test             node --test
 npm run sync         re-vendor from the LOCAL skin checkout
 npm run sync:check   fail if the vendored copies have drifted
 npm run watch:check  is there a newer skin RELEASE with settings changes?
 npm run watch:sync   vendor from the latest skin release
+node watch-upstream.mjs --tag vX.Y.Z    vendor a specific skin release
 ```
 
 ### Where the settings code comes from
@@ -200,8 +323,9 @@ npm run watch:sync   vendor from the latest skin release
 carries the port's patches and is never byte-equal to upstream, so without that
 record "which skin version is in here?" has no answer.
 
-`.github/workflows/upstream-watch.yml` runs `watch:check` daily and opens a PR —
-build and tests gating it — when a release changes anything vendored.
+`.github/workflows/upstream-watch.yml` runs daily. When a release changes anything
+vendored it syncs it, builds, runs the tests and ships it as a new plugin release; see
+[Skin releases are automatic](#skin-releases-are-automatic).
 
 `npm run sync` is the developer escape hatch: it reads a **local** skin checkout
 (`STREAMLINE_SRC`, default `../../streamline_js/streamline_project/src`) so you
@@ -220,11 +344,12 @@ Port 4555, not 4444 — dye2's dev server owns that one and the two run side by 
 
 ## Canon: the skin, not this repo
 
-`streamline_project/src/settings/` is the source of truth for settings code, and
-stays that way. This plugin vendors from it — `src/app/settings.js`,
+`src/settings/` in [decentespresso/streamline-js](https://github.com/decentespresso/streamline-js)
+is the source of truth for settings code, and stays that way. This plugin vendors from it — `src/app/settings.js`,
 `settings-shell.js`, `settings-tree.js`, `settings-data.js`,
 `settings-location.js`, `categories/*` and all of `src/app/modules/` are copies,
-regenerated by `npm run sync`. So is `src/styles/skin-vars.css`.
+regenerated by `npm run sync`. So are `src/styles/skin-vars.css`, `src/vendor/inter.css`
+and `src/vendor/notes-modal.css`.
 
 **Change settings behaviour in the skin, then `npm run sync` here.** Editing a
 vendored copy directly means the next sync silently reverts you.
@@ -236,20 +361,11 @@ anchor still matches, so an upstream rewrite fails the sync loudly rather than
 dropping the edit.
 
 Code that *is* owned here, and is edited here: `src/plugin.ts`, `src/pages/`,
-`src/utils/`, `src/assets/`, and in `src/app/` — `main.js`, `prefs.js`,
-`api-base.js`, `return-to-skin.js`, `modules/ui-lite.js`, `modules/dye2-admin.js`.
+`src/utils/`, `src/assets/`, `src/styles/daisy-shim.css`, `tailwind.config.js`, and in
+`src/app/` — `main.js`, `prefs.js`, `api-base.js`, `return-to-skin.js`,
+`modules/ui-lite.js`, `modules/dye2-admin.js`, `modules/profiles-lite.js`.
 
 See [skin-integration/README.md](skin-integration/README.md#canon).
-
-## Install
-
-`streamline-settings.reaplugin/` is the build output and is committed. Decaid installs it
-from a GitHub release (`.github/workflows/release.yml` builds, tests, validates
-and publishes on a `v*` tag), or from a branch checkout. The release asset is
-`streamline-settings.reaplugin-<tag>.zip`, with the `streamline-settings.reaplugin/`
-folder as its top-level entry. The folder name must stay
-`streamline-settings.reaplugin`: Decaid uses it to recognise the plugin, and
-renaming makes it uninstallable.
 
 ## Releasing
 
@@ -257,8 +373,8 @@ renaming makes it uninstallable.
 the version from the tag itself.
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 `.github/workflows/release.yml` then:
@@ -270,6 +386,11 @@ git push origin v0.1.0
    `version` present, `plugin.js` contains `createPlugin`.
 4. Zips with `streamline-settings.reaplugin/` as the top-level entry and publishes
    `streamline-settings.reaplugin-vX.Y.Z.zip` to Releases.
+
+What Decaid needs from a release, all of which `release.yml` guarantees: the tag equals the
+manifest `version` without its `v`, and the release carries exactly one `.zip` asset with the
+`streamline-settings.reaplugin/` folder as its top-level entry. Decaid's own reference is
+`doc/Plugins.md` in [decentespresso/decaid](https://github.com/decentespresso/decaid).
 
 Pushes to `main` run the same build, test and validate steps and upload the output as
 a build artifact. A manual run (`workflow_dispatch`) does the same.
