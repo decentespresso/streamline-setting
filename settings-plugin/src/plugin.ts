@@ -3,7 +3,7 @@
 import { renderSettingsPage } from "./pages/settings";
 import { renderAppBundle } from "./assets/app-bundle";
 import { renderI18nCsv } from "./assets/i18n-csv";
-import { renderIro, renderEasyMde, renderEasyMdeCss, renderEasyMdeIconsCss } from "./assets/vendor-assets";
+import { renderIro, renderEasyMde, renderEasyMdeCss, renderEasyMdeIconsCss, renderNotesModalCss } from "./assets/vendor-assets";
 
 // Injected by vite from manifest.src.json — see vite.config.ts.
 declare const __PLUGIN_ID__: string;
@@ -64,6 +64,9 @@ export default function createPlugin(host: PluginHost): PluginInstance {
 
         case "easymde-icons.css":
           return renderEasyMdeIconsCss(request);
+
+        case "notes-modal.css":
+          return renderNotesModalCss(request);
 
         default:
           return {

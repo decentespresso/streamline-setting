@@ -50,10 +50,18 @@ export const FILES = [
   // ── modules vendored as-is ────────────────────────────────────────────────
   ...["eco-steam", "units", "machine", "steam-mode", "firmware-progress", "led-color",
       "cup-warmer", "loadcell-cal", "sensor-cal", "settings-search", "home-assistant",
-      "logger", "screensaver-policy", "idb", "numpad-policy", "notes-modal",
+      "logger", "screensaver-policy", "idb", "numpad-policy",
       "maintenance-progress", "i18n-parser", "socket-slot",
       "visualizer", "settingsSync", "profile-overrides"]
     .map((m) => ({ from: `modules/${m}.js`, to: `src/app/modules/${m}.js` })),
+
+  // notes-modal.js loads its stylesheet from a skin-relative path; the plugin serves it
+  // from a route of its own (src/assets/vendor-assets.ts), like easymde.css.
+  {
+    from: "modules/notes-modal.js",
+    to: "src/app/modules/notes-modal.js",
+    patches: [[`loadStyle('src/css/notes-modal.css')`, `loadStyle('notes-modal.css')`]],
+  },
 
   // Added to the skin after v0.1.110 and imported only by a settings.js from the
   // same commits, so a release older than that legitimately has neither the
@@ -256,6 +264,7 @@ export { API_BASE_URL };`],
   { from: "vendor/iro.min.js", to: "src/vendor/iro.min.js" },
   { from: "vendor/easymde.min.js", to: "src/vendor/easymde.min.js" },
   { from: "vendor/easymde.min.css", to: "src/vendor/easymde.min.css" },
+  { from: "css/notes-modal.css", to: "src/vendor/notes-modal.css" },
   {
     from: "vendor/font-awesome/easymde-icons.css",
     to: "src/vendor/easymde-icons.css",
