@@ -188,14 +188,22 @@
     --preset-label-selected-color: #777777;
     --green: #65Ac8a;
     --button-grey: #EDEDED;
+    /* +/- adjust button, Figma 4351-1658: Buttons/Adjust.Active resting,
+       Adjust.Inactive once the value sits on that end's limit, with the glyph
+       dropping to Text/Primary.Inactive. Both ends behave the same way -- the
+       minus greys at the minimum, the plus at the maximum. */
     --stepper-btn-bg: #EDEDED;
+    --stepper-btn-bg-disabled: #F3F3F3;
     --settings-label-color: #385a92; /* left-gutter section labels: Action blue in light */
-    /* Card footer trash / add-step: light is the inactive button (white, grey stroke, blue icon); dark is the active blue fill */
-    --footer-btn-bg: #ffffff;
-    --footer-btn-border: #c9c9c9;
-    --footer-btn-icon: #385a92;
+    /* The "this is a control" label colour: Action/Action.Primary.Active in
+       light. Dark ships no blue text token -- its only Button Text value is
+       FavButton.Text.Selected #E8E8E8 (= Text/Primary.Active), and #415996
+       on the #292C38 card is ~2:1 -- so dark resolves to that instead.
+       Used by the cycle chips, the collapsed chip-backed labels and the
+       bare card-footer glyphs. */
+    --action-label: #385a92;
     --stepper-icon: #121212;
-    --stepper-icon-disabled: #c8cacc;
+    --stepper-icon-disabled: #DDDDDD;
 
     /* Plus Minus Flash Colors (Light Mode) */
     --plus-minus-flash-on-color: #b8b8b8;
@@ -250,23 +258,21 @@
     --bg-tertiary: #101217;
     --bg-secondary: #1b1e26;
     --border-primary: #3d4255; 
-    --border-graph-grid: #333844;
+    --border-graph-grid: #1E202B;
     --tab-text-inactive: #8a9ac9;
     --box-color: #17191e;
     --profileselectorbg:#17191e;
     --button-grey: #292c38; 
-    --stepper-btn-bg: #101217;
+    --stepper-btn-bg: #101115;
+    --stepper-btn-bg-disabled: #101115; 
     --settings-label-color: #e8e8e8; 
-    
-    --footer-btn-bg: #292c38;
-    --footer-btn-border: #3d4255;
-    --footer-btn-icon: #e8e8e8;
+    --action-label: #e8e8e8; 
     --stepper-icon: #959595;
-    --stepper-icon-disabled: #2e3138;
+    --stepper-icon-disabled: #272727;
     --secondary-button-bg: #707485; 
     
-    --plus-minus-flash-on-color: #4a4f5e;
-    --plus-minus-flash-on-color2: #3a3e4a;
+    --plus-minus-flash-on-color: #272A34;
+    --plus-minus-flash-on-color2: #1b1d24;
     --plus-minus-flash-off-color: #2a2d36;
     --bgmain-color : #101217;
     --mimoja-blue-v2: #415996;

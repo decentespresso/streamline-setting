@@ -67,7 +67,7 @@ export const FILES = [
   // same commits, so a release older than that legitimately has neither the
   // modules nor the imports. `optional` keeps a genuine removal a hard error.
   ...["led-sequence", "led-strip-runner", "calibrated-steam", "auto-steam-capability",
-      "auto-steam-flow", "auto-steam-safety", "auto-steam-session"].map((m) => ({
+      "auto-steam-flow", "auto-steam-safety", "auto-steam-session", "derek-stream"].map((m) => ({
     from: `modules/${m}.js`,
     to: `src/app/modules/${m}.js`,
     optional: true,
