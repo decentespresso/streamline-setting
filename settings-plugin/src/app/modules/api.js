@@ -13,6 +13,7 @@ import { openDB, getSetting, setSetting } from './idb.js';
 import { buildCalibrateBody, classifyCalState } from './loadcell-cal.js';
 import { deriveDisplayAction, isScreensaverSuppressed } from './screensaver-policy.js';
 import { splitNdjson, advanceFirmwareState, initialFirmwareState } from './firmware-progress.js';
+import { parseSse } from './derek-stream.js';
 
 // PORT_PLAN.md §4-B: the skin points these at a bridge on another host:port
 // and lets the user override the hostname; the plugin is served by the bridge
@@ -3052,4 +3053,27 @@ export async function submitFeedback(payload) {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
+}
+
+// Stream a Derek answer through Decaid's relay. Calls onEvent({event, data})
+// per SSE frame; resolves when the stream ends. Abort via `signal`.
+export async function streamDerekAnswer(query, onEvent, signal) {
+    const res = await fetch(`${API_BASE_URL}/derek/answers/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, include_documents: true, include_videos: true }),
+        signal,
+    });
+    if (!res.ok) throw new Error(`Derek HTTP ${res.status}`);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parsed = parseSse(buffer);
+        buffer = parsed.rest;
+        parsed.events.forEach(onEvent);
+    }
 }
