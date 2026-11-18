@@ -301,3 +301,35 @@ export async function clearDyeWorkflowContext({ includeGrinderSetting = false } 
         return false;
     }
 }
+
+// ─── Workflow context cleanup ───────────────────────────────────────────────
+// Verbatim from streamline_project/src/modules/dyeStrip.js. Switching DYE2 off wipes
+// what it wrote to the workflow, so its leftovers do not keep labelling shots.
+//
+// Left alone on purpose: targetDoseWeight / targetYield, which the dashboard owns, and
+// `profile`, the espresso profile the machine actually runs (non-nullable in Decaid's
+// Workflow model).
+const DYE2_OWNED_CONTEXT = {
+    beanBatchId: null, coffeeName: null, coffeeRoaster: null,
+    grinderId: null, grinderModel: null, grinderSetting: null,
+    baristaName: null, drinkerName: null,
+    extras: { basketId: null, basketName: null, rpm: null, note: null, dye: null },
+};
+
+export async function clearDye2ContextOnDisable() {
+    try {
+        const live = await getWorkflow();
+        const context = live?.context;
+        if (!context) return false;
+        const extras = context.extras || {};
+        const set = Object.keys(DYE2_OWNED_CONTEXT).some(k => k !== 'extras' && context[k] != null)
+            || Object.keys(DYE2_OWNED_CONTEXT.extras).some(k => extras[k] != null);
+        if (!set) return false;
+        await updateWorkflow({ context: DYE2_OWNED_CONTEXT }, 'dye.clearOnDisable');
+        logger.info('dyeStrip: cleared DYE2 workflow context');
+        return true;
+    } catch (err) {
+        logger.warn('Failed to clear DYE2 workflow context:', err);
+        return false;
+    }
+}

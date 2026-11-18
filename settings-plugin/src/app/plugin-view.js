@@ -25,6 +25,38 @@ export function findPlugin(plugins, pluginId) {
     return Array.isArray(plugins) ? (plugins.find(p => p?.id === pluginId) || null) : null;
 }
 
+// Presentation only: settings managed by a plugin's own UI must stay in the
+// manifest for Decaid to retain and validate their stored values.
+export function isPluginSettingVisible(schema) {
+    return schema?.hidden !== true;
+}
+
+// Pass the actual skin address, including its assigned port, explicitly.
+// Cross-origin referrers can lose the path/query or be absent in a WebView.
+// `returnPage` is the skin page the plugin returns to (settings by default, or
+// null for the dashboard); `view` selects a screen inside the plugin's own UI.
+// `embedTheme` ('light' | 'dark') is for an overlay frame: the page gets
+// `embed=1&theme=` and no `returnTo`, since closing is a message, not a navigation.
+export function pluginUiUrl(plugin, apiBaseUrl, currentUrl, { view = '', returnPage = 'settings', embedTheme = '' } = {}) {
+    const endpoints = Array.isArray(plugin?.api) ? plugin.api : [];
+    if (!endpoints.some(e => e?.type === 'http' && e?.id === 'ui')) return null;
+    const uiUrl = `${apiBaseUrl}/plugins/${encodeURIComponent(plugin.id)}/ui`;
+    const params = [];
+    if (embedTheme) params.push('embed=1', `theme=${embedTheme === 'light' ? 'light' : 'dark'}`);
+    if (currentUrl && !embedTheme) {
+        try {
+            const returnTo = new URL(currentUrl);
+            if (['http:', 'https:'].includes(returnTo.protocol) && !returnTo.username && !returnTo.password) {
+                if (returnPage) returnTo.searchParams.set('page', returnPage);
+                else returnTo.searchParams.delete('page');
+                params.push(`returnTo=${encodeURIComponent(returnTo.href)}`);
+            }
+        } catch { /* no returnTo: the plugin falls back to its own default */ }
+    }
+    if (view) params.push(`view=${encodeURIComponent(view)}`);
+    return params.length ? `${uiUrl}?${params.join('&')}` : uiUrl;
+}
+
 // Only these two kinds are checkable: updateAllPlugins skips everything else
 // (plugin_source_service.dart, `!source.kind.isManaged` -> continue), so a
 // local ZIP or folder install is a snapshot that can never report an update.
@@ -123,7 +155,7 @@ export function pluginViewModel(plugins, pluginId) {
         pending: plugin?.pendingUpdate || null,
         loaded: !!plugin?.loaded,
         settingsSchema,
-        settingsKeys: Object.keys(settingsSchema),
+        settingsKeys: Object.keys(settingsSchema).filter(key => isPluginSettingVisible(settingsSchema[key])),
     };
 }
 
@@ -142,6 +174,29 @@ export function pluginStatusLabel(status) {
         case 'enabled': return 'Up to date';
         default: return 'Unknown';
     }
+}
+
+export const AUTO_FLOW_CAL_PLUGIN_ID = 'auto-flow-cal.reaplugin';
+
+// A stored boolean wins, then the manifest's own default, then the fallback.
+// GET /plugins/:id/settings answers {} (HTTP 200) for a plugin that is not
+// loaded, so "nothing stored" has to resolve through the manifest defaults.
+function resolvePluginBoolean(plugin, settings, key, fallback) {
+    if (typeof settings?.[key] === 'boolean') return settings[key];
+    const manifestDefault = plugin?.settings?.[key]?.default;
+    return typeof manifestDefault === 'boolean' ? manifestDefault : fallback;
+}
+
+// True when the Auto Flow Calibration plugin is actively adjusting the flow
+// multiplier: loaded, Enabled, and not in DryRun. `loaded` is what keeps an
+// installed-but-off plugin (whose empty settings default to Enabled) from
+// counting as managing.
+export function isFlowCalPluginManaging(plugins, settings) {
+    const plugin = findPlugin(plugins, AUTO_FLOW_CAL_PLUGIN_ID);
+    if (!plugin || plugin.loaded !== true) return false;
+    const enabled = resolvePluginBoolean(plugin, settings, 'Enabled', true);
+    const dryRun = resolvePluginBoolean(plugin, settings, 'DryRun', false);
+    return enabled && !dryRun;
 }
 
 // Category id for a single plugin's own settings page. The Extensions nav grows

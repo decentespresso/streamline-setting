@@ -21,7 +21,8 @@ export const SETTINGS_TREE = {
         i18nKey: 'Connection',
         subcategories: [
             { id: 'ble_machine', name: '1. Machine', settingsCategory: 'ble_machine' },
-            { id: 'ble_scale', name: '2. Scale', settingsCategory: 'ble_scale' }
+            { id: 'ble_scale', name: '2. Scale', settingsCategory: 'ble_scale' },
+            { id: 'ble_grinder', name: '3. Grinder', settingsCategory: 'ble_grinder' }
         ]
     },
     'calibration': {
@@ -39,7 +40,7 @@ export const SETTINGS_TREE = {
     'machine': {
         name: 'Machine',
         subcategories: [
-            { id: 'usbchargermode', name: 'USB', settingsCategory: 'usbchargermode' },
+            { id: 'usbchargermode', name: 'Smart Charging', settingsCategory: 'usbchargermode' },
             { id: 'cupwarmer', name: 'Cup Warmer', settingsCategory: 'cupwarmer', i18nKey: 'Cup Warmer', bengleOnly: true },
             { id: 'ledstrip', name: 'Lighting', settingsCategory: 'ledstrip', i18nKey: 'Lighting', bengleOnly: true },
             { id: 'machineinfo', name: 'Machine Information', settingsCategory: 'machineinfo', i18nKey: 'Machine Info' }
@@ -69,7 +70,6 @@ export const SETTINGS_TREE = {
     'extensions': {
         name: 'Extensions',
         subcategories: [
-            { id: 'extention1', name: 'Visualizer', settingsCategory: 'extensions' },
             { id: 'shotupload', name: 'Shot Uploader', settingsCategory: 'shotupload', i18nKey: 'Shot Uploader' },
             // The one dynamic node: lists every plugin Decaid reports (see
             // window.loadPluginList in settings.js) with a full generic settings
@@ -90,7 +90,8 @@ export const SETTINGS_TREE = {
             { id: 'tempunit', name: 'Temperature', settingsCategory: 'tempunit', i18nKey: 'Temperature' },
             { id: 'screensaver', name: 'Screen Saver', settingsCategory: 'screensaver' },
             { id: 'keyboard-shortcuts', name: 'Keyboard Shortcuts', settingsCategory: 'keyboard_shortcuts' },
-            { id: 'homeassistant', name: 'Home Assistant', settingsCategory: 'homeassistant', i18nKey: 'Home Assistant' }
+            { id: 'homeassistant', name: 'Home Assistant', settingsCategory: 'homeassistant', i18nKey: 'Home Assistant' },
+            { id: 'sounds', name: 'Enable sounds', settingsCategory: 'sounds' }
         ]
     },
     'updates': {

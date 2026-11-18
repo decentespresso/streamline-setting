@@ -92,3 +92,60 @@ export const ledLiveWriteState = (basePalette, front, back, machineBank) => {
         frontSwitch: { awake: frontStrip.awake, sleeping: frontStrip.sleeping },
     };
 };
+
+/**
+ * Which colours to POST to `/machine/ledStrip/preview` so the strip shows what
+ * the user is editing.
+ *
+ * Unlike `ledLiveWriteState`, this never has to carry the half of the palette
+ * the user is not touching: preview writes the firmware's *live* registers and
+ * leaves the four stored ones alone, so naming only the edited zones leaves the
+ * rest showing the stored palette. Naming no zone at all is a 400, so an empty
+ * selection returns null and the caller sends nothing.
+ *
+ * `frontSwitch` is not a strip the endpoint knows about -- the firmware derives
+ * the HV switch colours from the front strip -- so editing the switch zone
+ * previews on `frontStrip`, which is what the user is looking at anyway.
+ *
+ * @param {object} palette  LedStripState-shaped map to read the colour from
+ * @param {string[]} editedZoneKeys  zone keys being edited (e.g. ['frontStrip'])
+ * @param {'awake'|'sleeping'} editedBank  palette bank being edited
+ * @returns {{frontStrip?:string, backStrip?:string}|null}
+ */
+export const ledPreviewPayload = (palette, editedZoneKeys, editedBank) => {
+    const bank = editedBank === 'sleeping' ? 'sleeping' : 'awake';
+    const colour = (zoneKey) => palette?.[zoneKey]?.[bank] || '000000000000';
+    const payload = {};
+    for (const zoneKey of editedZoneKeys || []) {
+        if (zoneKey === 'frontStrip' || zoneKey === 'frontSwitch') payload.frontStrip = colour(zoneKey === 'frontSwitch' ? 'frontStrip' : zoneKey);
+        else if (zoneKey === 'backStrip') payload.backStrip = colour(zoneKey);
+    }
+    return Object.keys(payload).length ? payload : null;
+};
+
+// ── Brightness ───────────────────────────────────────────────────────────
+// Ambient lighting gets its brightness changed far more often than its hue,
+// so the Lighting page gives brightness its own slider instead of burying it
+// in the colour wheel's value track. These are the two pure conversions that
+// slider needs: HSV value in and out of a '#RRGGBB' string.
+
+/** How bright a '#RRGGBB' is, 0-100 (HSV value). Black is 0. */
+export const ledValueOf = (hex) => {
+    const { r, g, b } = ledHexToRgb(hex);
+    return Math.round((Math.max(r, g, b) / 255) * 100);
+};
+
+/**
+ * `hex` rescaled to a 0-100 brightness, hue and saturation kept.
+ * Black has no hue to scale, so it stays black -- the caller supplies a base
+ * colour (the last lit one) when it wants to bring a dark strip back up.
+ */
+export const ledWithValue = (hex, value) => {
+    const { r, g, b } = ledHexToRgb(hex);
+    const max = Math.max(r, g, b);
+    const v = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+    if (!max) return '#000000';
+    const f = (v / 100) * 255 / max;
+    const scale = (c) => Math.max(0, Math.min(255, Math.round(c * f)));
+    return '#' + [scale(r), scale(g), scale(b)].map((c) => c.toString(16).padStart(2, '0')).join('').toUpperCase();
+};

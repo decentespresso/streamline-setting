@@ -162,3 +162,18 @@ export function deriveDisplayAction(previousState, currentState) {
     if (currentState === 'idle' || currentState === 'error') return 'restore';
     return 'none';
 }
+
+/**
+ * May a tap on the screensaver overlay wake the machine?
+ *
+ * Only a tap on the overlay itself. A plugin's `screensaver-button` lives inside
+ * the overlay but is a plugin control: pressing it opens the plugin's UI and must
+ * never send 'idle' (the saver is left only by waking the machine, which the
+ * plugin button does not do).
+ *
+ * @param {boolean} screensaverActive
+ * @param {boolean} onPluginControl - the tap landed on a plugin-owned control.
+ */
+export function mayTapWakeMachine({ screensaverActive = false, onPluginControl = false } = {}) {
+    return !!screensaverActive && !onPluginControl;
+}

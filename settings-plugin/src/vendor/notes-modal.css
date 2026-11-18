@@ -5,7 +5,10 @@
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(6px);
+    /* No backdrop-filter: .notes-modal-container is opaque and fills the
+       overlay, so a blur here is only ever visible during the 0.3s slide-in,
+       while costing a full-screen offscreen pass on every frame the editor
+       repaints -- which a tablet pays for on every keystroke. */
     display: none;
     justify-content: center;
     align-items: center;
@@ -68,11 +71,11 @@
     min-height: 0;
     border-radius: 67.5px;
     background: transparent;
-    border: 1px solid var(--mimoja-blue, #385A92);
+    border: 1px solid var(--mimoja-blue-v2, #385A92);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     font-weight: 700;
     font-size: 24px;
-    color: var(--mimoja-blue, #385A92);
+    color: var(--mimoja-blue-v2, #385A92);
     cursor: pointer;
     transition: background-color 0.2s;
 }
@@ -89,8 +92,8 @@
     height: 82px;
     min-height: 0;
     border-radius: 67.5px;
-    background-color: var(--mimoja-blue, #385A92);
-    border: 1px solid var(--mimoja-blue, #385A92);
+    background-color: var(--button-primary-bg, #385A92);
+    border: 1px solid var(--button-primary-bg, #385A92);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     font-weight: 700;
     font-size: 24px;
@@ -141,7 +144,7 @@
 }
 
 #notes-modal-textarea:focus {
-    border-color: #385A92;
+    border-color: var(--mimoja-blue-v2);
     background: #ffffff;
 }
 
@@ -177,7 +180,7 @@
 }
 
 .notes-modal-editor-scaled .EasyMDEContainer .CodeMirror-focused {
-    border-color: #385A92;
+    border-color: var(--mimoja-blue-v2);
     background-color: #ffffff;
 }
 
@@ -239,7 +242,7 @@
 
 .notes-modal-editor-scaled .EasyMDEContainer .editor-toolbar button.active,
 .notes-modal-editor-scaled .EasyMDEContainer .editor-toolbar.fullscreen button.active {
-    background-color: var(--mimoja-blue, #385A92) !important;
+    background-color: var(--button-primary-bg, #385A92) !important;
     color: #ffffff !important;
 }
 
@@ -290,8 +293,8 @@
 }
 
 [data-theme='dark'] .notes-modal-confirm {
-    background-color: #385A92;
-    border-color: #385A92;
+    background-color: var(--button-primary-bg);
+    border-color: var(--button-primary-bg);
 }
 
 [data-theme='dark'] .notes-modal-confirm:active {
@@ -311,12 +314,12 @@
 }
 
 [data-theme='dark'] #notes-modal-textarea:focus {
-    border-color: #385A92;
+    border-color: var(--mimoja-blue-v2);
     background: #1F2234;
 }
 
 [data-theme='dark'] .notes-modal-editor-scaled .EasyMDEContainer .CodeMirror-focused {
-    border-color: #385A92;
+    border-color: var(--mimoja-blue-v2);
     background-color: #1F2234;
 }
 
@@ -339,7 +342,7 @@
 }
 
 [data-theme='dark'] .notes-modal-editor-scaled .EasyMDEContainer .editor-toolbar button.active {
-    background-color: #385A92 !important;
+    background-color: var(--button-primary-bg) !important;
     color: white !important;
 }
 

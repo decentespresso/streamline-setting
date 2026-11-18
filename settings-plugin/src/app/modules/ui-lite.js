@@ -9,6 +9,7 @@
 // self-contained implementation here or become explicit no-ops until the KV
 // bridge lands — see the notes on each.
 import { logger } from './logger.js';
+import { SCREENSAVER_CLOCK_FORMATS, SCREENSAVER_CLOCK_POSITIONS, SCREENSAVER_DATE_FORMATS } from './screensaver-clock.js';
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 // The skin's showToast drives #app-toast, markup that lives in its index.html: a
@@ -165,7 +166,40 @@ export function clearMilkStopProbeRestore() {}
 // the parent frame in phase 6. Until then a settings change is persisted by the
 // caller and simply not previewed live.
 export function setScreensaverImages(_images) {}
-export function setScreensaverCycleSeconds(_seconds) {}
+// Stored and clamped as the skin does; settings.js shows the value this returns.
+export function setScreensaverCycleSeconds(seconds) {
+    const clamped = Math.min(600, Math.max(2, parseInt(seconds, 10) || 10));
+    localStorage.setItem('screensaverCycleSeconds', String(clamped));
+    return clamped;
+}
 export function activateScreensaver() {}
 export function hideScreensaver() {}
 export function isScreensaverActive() { return false; }
+
+// The clock's settings are stored exactly as the skin stores them (settingsSync mirrors
+// these keys to KV). The skin's live repaint of its clock has no counterpart here.
+function storeScreensaverOption(key, options, value, label) {
+    if (!options.some(option => option.value === value)) {
+        throw new RangeError(`Invalid screensaver ${label}`);
+    }
+    localStorage.setItem(key, value);
+}
+export function setScreensaverClockEnabled(enabled) {
+    localStorage.setItem('screensaverShowClock', enabled ? 'true' : 'false');
+}
+export function setScreensaverClockFormat(format) {
+    storeScreensaverOption('screensaverClockFormat', SCREENSAVER_CLOCK_FORMATS, format, 'clock format');
+}
+export function setScreensaverDateFormat(format) {
+    storeScreensaverOption('screensaverDateFormat', SCREENSAVER_DATE_FORMATS, format, 'date format');
+}
+export function setScreensaverClockPosition(position) {
+    storeScreensaverOption('screensaverClockPosition', SCREENSAVER_CLOCK_POSITIONS, position, 'clock position');
+}
+
+// ── Grinder tile ──────────────────────────────────────────────────────────────
+// grinder-runtime.js is vendored for the Follow / Send switches on the Grinder page.
+// These two are reached only through its initGrinderSync(), which the skin's app.js
+// starts; the plugin has no Grind tile and never calls it.
+export async function applyPluginSetAsync() { return false; }
+export function setGrinderGrindStep() {}

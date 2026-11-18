@@ -2,7 +2,8 @@
 // Canon is the skin. Change it there, then run `npm run sync` here.
 // The port's own edits to this file live as patches in sync-upstream.mjs.
 import { isEcoSteamEnabled, setEcoSteamEnabled } from './modules/eco-steam.js';
-import {  getReaSettings, getDe1Settings, getDe1AdvancedSettings, setReaSettings, setDe1Settings, setDe1AdvancedSettings, resetDe1Settings, setMachineState, connectScaleDevice, connectDeviceWebSocket, sendDeviceCommand, awaitDeviceConnectResult, dimDisplay, restoreDisplay, isBlackScreenSaver, setBlackScreenSaver as apiSetBlackScreenSaver, rememberBrightness, getLastDisplayState, currentMachineState, signalHeartbeat, MachineState, getDeviceWebSocket, initDeviceWebSocketWithCallback, saveScaleDeviceId, getScaleDeviceId, connectDisplayWebSocket, sendDisplayCommand, connectUpdateWebSocket, sendUpdateCommand, enableWakeLock, disableWakeLock, isWakeLockEnabled, isWakeProfileEnabled, getWakeProfileId, getPresenceSettings, setPresenceSettings, getPresenceSchedules, createPresenceSchedule, updatePresenceSchedule, deletePresenceSchedule, getAppInfo, getMachineInfo, getWorkflow, updateWorkflow, getAllSkins, getDefaultSkin, setDefaultSkin, updateSkins, stopWebuiServer, startWebuiServer, getWebuiServerStatus, uploadFirmware, applyFirmware, cancelFirmwareUpdate, getFirmwareCatalog, setWaterLevels, API_BASE_URL, listWifiScales, addWifiScale, removeWifiScale, forgetDevice, getLedStrip, setLedStrip, commitLedStrip, getCupWarmer, setCupWarmer, setCupWarmerPrewarm, calibrateScale, tareScale, getSensorCalibration, setSensorCalibration, getLastMachineSnapshot, ensureMachineSnapshotSocket, connectScaleWebSocket, setFirmwareFlashInFlight, persistSharedValue, MILK_STOP_LAST_VALUE_KEY, STEAM_DURATION_LAST_VALUE_KEY, STEAM_FLOW_LAST_VALUE_KEY, STEAM_TEMP_LAST_VALUE_KEY, HOT_WATER_VOLUME_LAST_VALUE_KEY, HOT_WATER_TEMP_LAST_VALUE_KEY, approvePluginUpdate, getPlugins, getDecentAccountStatus, getPluginSettings, setPluginSettings, callPluginEndpoint, enablePlugin } from './modules/api.js';
+import {  getReaSettings, getDe1Settings, getDe1AdvancedSettings, setReaSettings, setDe1Settings, setDe1AdvancedSettings, resetDe1Settings, setMachineState, connectScaleDevice, connectDeviceWebSocket, sendDeviceCommand, awaitDeviceConnectResult, dimDisplay, restoreDisplay, isBlackScreenSaver, setBlackScreenSaver as apiSetBlackScreenSaver, rememberBrightness, getLastDisplayState, currentMachineState, signalHeartbeat, MachineState, getDeviceWebSocket, initDeviceWebSocketWithCallback, saveScaleDeviceId, getScaleDeviceId, connectDisplayWebSocket, sendDisplayCommand, connectUpdateWebSocket, sendUpdateCommand, enableWakeLock, disableWakeLock, isWakeLockEnabled, isWakeProfileEnabled, getWakeProfileId, getPresenceSettings, setPresenceSettings, getPresenceSchedules, createPresenceSchedule, updatePresenceSchedule, deletePresenceSchedule, getAppInfo, getMachineInfo, getWorkflow, updateWorkflow, getAllSkins, getDefaultSkin, setDefaultSkin, updateSkins, stopWebuiServer, startWebuiServer, getWebuiServerStatus, uploadFirmware, applyFirmware, cancelFirmwareUpdate, getFirmwareCatalog, setWaterLevels, API_BASE_URL, listWifiScales, addWifiScale, removeWifiScale, forgetDevice, getLedStrip, setLedStrip, commitLedStrip, previewLedStrip, clearLedStripPreview, getCupWarmer, setCupWarmer, setCupWarmerPrewarm, calibrateScale, tareScale, getSensorCalibration, setSensorCalibration, getMachineCalibration, setMachineCalibration, getLastMachineSnapshot, ensureMachineSnapshotSocket, connectScaleWebSocket, setFirmwareFlashInFlight, persistSharedValue, readSharedValue, MILK_STOP_LAST_VALUE_KEY, STEAM_DURATION_LAST_VALUE_KEY, STEAM_FLOW_LAST_VALUE_KEY, STEAM_TEMP_LAST_VALUE_KEY, HOT_WATER_VOLUME_LAST_VALUE_KEY, HOT_WATER_TEMP_LAST_VALUE_KEY, approvePluginUpdate, getPlugins, getDecentAccountStatus, getPluginSettings, setPluginSettings, callPluginEndpoint, enablePlugin, getScaleInfo } from './modules/api.js';
+import { isCustomSaverBrightness, setCustomSaverBrightnessEnabled, getSaverBrightness, setSaverBrightness, SAVER_BRIGHTNESS_DEFAULT } from './modules/api.js';
 import * as ui from './modules/ui-lite.js';
 import { availableProfiles, translateProfileTitle, loadAvailableProfiles } from './modules/profiles-lite.js';
 import { getSupportedLanguages, getCurrentLanguage, setLanguage, translatePage, getTranslation } from './modules/i18n.js';
@@ -11,29 +12,40 @@ import { returnToSkin } from './return-to-skin.js';
 import { notifySkin } from './prefs.js';
 import { logger } from './modules/logger.js';
 import { isBengleMachine, setMachineModel } from './modules/machine.js';
-import { resolveSteamStopMode, applyMilkProbeGate } from './modules/steam-mode.js';
+import { brightnessNotices, QUEUED_NOTICE, LOW_BATTERY_NOTICE, GO_TO_SETTING_LABEL, LOW_BATTERY_SETTING_CATEGORY, REQUESTED_APPLIED_TEMPLATE, requestedBrightnessReadout } from './modules/brightness-notice.js';
+import { resolveSteamStopMode, applyMilkProbeGate, steamDurationIntent, steamOffPatch, steamOnPatch, isSteamOff, MIN_STEAM_DURATION_S, STEAM_ENABLED_MIN_TEMP, STEAM_ENABLED_MAX_TEMP } from './modules/steam-mode.js';
 import { summarizeFirmwareCatalog, isFirmwareCancellationError, estimateRemainingSeconds, isUploadComplete, estimateVerifyRemainingSeconds, estimateTotalRemainingSeconds, FIRMWARE_VERIFY_SECONDS, formatDuration } from './modules/firmware-progress.js';
 import { setScreensaverSuppressed, isMachineAsleep } from './modules/screensaver-policy.js';
-import { ledRgbToColor16, ledColor16ToHex8, ledHexToRgb, ledPreviewComposite, ledLiveWriteState } from './modules/led-color.js';
-import { LED_SEQUENCE_KEY, MIN_STEP_DURATION_MS, MAX_STEP_DURATION_MS, LED_TRIGGER_STATES, parseLedSequence, serializeLedSequence, addStep, removeStep, updateStep, moveStep, toggleTriggerState } from './modules/led-sequence.js';
-import { requestStart as ledRunRequestStart, requestStop as ledRunRequestStop, forceStop as ledRunForceStop, onRunChange as ledRunOnChange, getRunState as ledRunGetState, onMachineStateChange as ledRunOnMachineStateChange, noteStoredPalette as ledRunNoteStoredPalette } from './modules/led-strip-runner.js';
+import { wakeProfileChoices } from './modules/wake-profile.js';
+import { SCREENSAVER_CLOCK_FORMATS, SCREENSAVER_CLOCK_POSITIONS, SCREENSAVER_DATE_FORMATS, resolveScreensaverDateFormat, resolveScreensaverClockFormat, resolveScreensaverClockPosition } from './modules/screensaver-clock.js';
+import { ledRgbToColor16, ledColor16ToHex8, ledHexToRgb, ledPreviewPayload, ledValueOf, ledWithValue } from './modules/led-color.js';
+import { LED_SEQUENCE_KEY, MAX_PRESET_NAME_LENGTH, sequenceTimeline, formatStepSeconds, nudgeStepDuration, LED_TRIGGER_STATES, parseLedLibrary, serializeLedLibrary, addPreset, removePreset, renamePreset, selectPreset, updateActivePreset, setSequencesEnabled, getActivePreset, addStep, removeStep, updateStep, moveStep, toggleTriggerState } from './modules/led-sequence.js';
+import { setTriggerSuspended as ledRunSetTriggerSuspended, requestStart as ledRunRequestStart, requestStop as ledRunRequestStop, forceStop as ledRunForceStop, onRunChange as ledRunOnChange, getRunState as ledRunGetState, onMachineStateChange as ledRunOnMachineStateChange, noteStoredPalette as ledRunNoteStoredPalette } from './modules/led-strip-runner.js';
 import { isCupWarmerOn, readCupWarmerTarget, clampCupWarmerTarget, clampPrewarmMinutes, resolvePrewarm, prewarmWarnings, prewarmShapeSignature, cupWarmerViewMode, formatCurrentMatTemp, getCupWarmerState, setCupWarmerState, patchCupWarmerState, onCupWarmerStateChange, CUP_WARMER_TARGET_KEY, PREWARM_MIN_MINUTES, PREWARM_MAX_MINUTES } from './modules/cup-warmer.js';
 import { clampCalWeight, calActionState, CAL_WEIGHT_DEFAULT_G, CAL_WEIGHT_MIN_G, CAL_WEIGHT_MAX_G } from './modules/loadcell-cal.js';
-import { SENSOR_CAL_TARGETS, sensorCalTarget, parseSensorCalInput, previewCalibration, absoluteSetCorrection, formatCalValue, snapshotReading, averageReadings, correctionBlocked, SENSOR_CAL_SAMPLE_WINDOW_MS } from './modules/sensor-cal.js';
+import { SENSOR_CAL_TARGETS, sensorCalTarget, parseSensorCalInput, previewCalibration, absoluteSetCorrection, formatCalValue, snapshotReading, averageReadings, correctionBlocked, SENSOR_CAL_SAMPLE_WINDOW_MS, clampFlowMultiplier, FLOW_MULTIPLIER_STEP } from './modules/sensor-cal.js';
 import { APP_VERSION, SKIN_ID } from './version.js';
+import { compareVersions, normalizeReleaseState, shouldCheck, recordSuccess, recordFailure, recordRateLimit, limitRemainingMs, getTag } from './modules/skin-version.js';
 import { openNotesModal } from './modules/notes-modal.js';
 import { openDB, getSetting, setSetting, addEmails, getAllEmails, getLatestEmailTimestamp } from './modules/idb.js';
 import { openModal, shouldUseNumpad, initializeNumpadModal } from './modules/numpad-modal.js';
-import { ensureDye2PluginReady, getDye2VersionInfo, installDye2Plugin, offerDye2Update, checkDye2UpdatesIfDue, clearDyeWorkflowContext } from './modules/dye2-admin.js';
+import { ensureDye2PluginReady, getDye2VersionInfo, installDye2Plugin, offerDye2Update, checkDye2UpdatesIfDue, clearDye2ContextOnDisable } from './modules/dye2-admin.js';
 import { pluginKeywords, pluginListKeywords, subcategoryMatches, textFromHtml, tokenPattern, HIGHLIGHT_CLASS } from './modules/settings-search.js';
 import { haYamlBlocks } from './modules/home-assistant.js';
 import { loadIro } from './modules/vendor-loader.js';
 import { readSettingsLocation, writeSettingsLocation } from './settings-location.js';
 import { SETTINGS_TREE as settingsTree } from './settings-tree.js';
-import { adoptFromMachine, diffUserSettings, restorePatches } from './settings-restore.js';
+import { adoptFromMachine, diffUserSettings, isOutOfRange, normalizeSettingValue, rejectedWrites, restorePatches, splitDifferences } from './settings-restore.js';
 import { escapeHtml, pluginViewModel, pluginStatusLabel, pluginNavEntries,
          pluginIdFromCategory, pluginCategoryFor, pluginStatus, isManagedPluginSource,
-         minutesSince, shouldCheckPluginUpdates } from './plugin-view.js';
+         minutesSince, shouldCheckPluginUpdates, isPluginSettingVisible, pluginUiUrl,
+         AUTO_FLOW_CAL_PLUGIN_ID, isFlowCalPluginManaging } from './plugin-view.js';
+import { createScaleInfoLifecycle, getScaleDeviceSetting, hasSkaleUsbSetting,
+         shouldInvalidateScaleInfoAfterWrite } from './scale-device-details.js';
+import { parseSkinAnswer } from './modules/plugin-surfaces.js';
+import { FEEDBACK_AREAS, FEEDBACK_DEFAULT_AREA, buildFeedbackDescription } from './feedback-report.js';
+import { TOUCH_SOUND_KEY, isTouchSoundEnabled, playTouchSound } from './modules/touch-sound.js';
+import { timeNav } from './modules/perf-probe.js';
 
 // The DE1 caps the fan-threshold MMR item at 50 °C (min 0, max 50 in Decaid's
 // MMRItem table) and clamps a higher write without reporting it, so the machine
@@ -59,20 +71,29 @@ const SETTINGS_NUMPAD_CONFIGS = {
     'sensor-cal-pressure-measured':    { title: 'MEASURED BAR',      unit: 'bar',  min: 0, max: 20,  fieldType: 'settings-sensor-cal-pressure-measured' },
     'sensor-cal-flow-measured':        { title: 'MEASURED FLOW',     unit: 'ml/s', min: 0, max: 20,  fieldType: 'settings-sensor-cal-flow-measured' },
     steamCalibTempInput:     { title: 'STEAM TEMPERATURE',   unit: '°C',   min: 135, max: 170,  fieldType: 'settings-steam-calib-temp' },
+    // min 0 so the numpad can express Off; anything typed below
+    // STEAM_ENABLED_MIN_TEMP lands as Off rather than as a temperature.
     steamTempInput:          { title: 'STEAM TEMPERATURE',   unit: '°C',   min: 0,   max: 170,  fieldType: 'settings-steam-temp' },
-    steamDurationInput:      { title: 'STEAM DURATION',      unit: 'sec',  min: 10,  max: 120,  fieldType: 'settings-steam-duration' },
+    // 255 is the DE1's own ceiling, not a UI preference: TargetSteamLength is a
+    // single byte on the wire (unified_de1.parsing.dart reads it with getUint8),
+    // so anything above 255 cannot be held by the machine at all.
+    steamDurationInput:      { title: 'STEAM DURATION',      unit: 'sec',  min: 0,   max: 255,  fieldType: 'settings-steam-duration' },
     steamFlowInput:          { title: 'STEAM FLOW',          unit: 'ml/s', min: 0.4, max: 2.5,  fieldType: 'settings-steam-flow' },
-    hotWaterTempInput:       { title: 'HOT WATER TEMP',      unit: '°C',   min: 50,  max: 95,   fieldType: 'settings-hw-temp' },
-    hotWaterVolumeInput:     { title: 'HOT WATER VOLUME',    unit: 'ml',   min: 10,  max: 500,  fieldType: 'settings-hw-volume' },
     hotWaterDurationInput:   { title: 'HOT WATER DURATION',  unit: 'sec',  min: 5,   max: 120,  fieldType: 'settings-hw-duration' },
-    hotWaterFlowInput:       { title: 'HOT WATER FLOW',      unit: 'ml/s', min: 0.1, max: 8,    fieldType: 'settings-hw-flow' },
+    // 1-10 ml/s. Decaid does not validate this field at all -- it passes
+    // hotWaterData.flow straight to the DE1's hotWaterFlowRate MMR -- and its
+    // own two reference points disagree: the hot-water form slider is 1.0-8.0
+    // (hot_water_form.dart) while HotWaterData.defaults() ships flow 10, above
+    // that slider's own max. 10 is the ceiling that makes Decaid's default a
+    // legal value instead of something this page flags on a factory machine.
+    hotWaterFlowInput:       { title: 'HOT WATER FLOW',      unit: 'ml/s', min: 1,   max: 10,   fieldType: 'settings-hw-flow' },
     heaterPh1FlowInput:      { title: 'HEATER WARMUP FLOW',  unit: 'ml/s', min: 0,   max: 10,   fieldType: 'settings-heater-ph1' },
     heaterPh2FlowInput:      { title: 'HEATER TEST FLOW',    unit: 'ml/s', min: 0,   max: 10,   fieldType: 'settings-heater-ph2' },
     heaterIdleTempInput:     { title: 'IDLE TEMPERATURE',    unit: '°C',   min: 0,   max: 99,   fieldType: 'settings-heater-idle-temp' },
     heaterPh2TimeoutInput:   { title: 'HEATER TEST TIMEOUT', unit: 'sec',  min: 0,   max: 60,   fieldType: 'settings-heater-ph2-timeout' },
     weightFlowMultiplierInput: { title: 'WEIGHT FLOW MULT',  unit: '',     min: 0,              fieldType: 'settings-weight-mult' },
     volumeFlowMultiplierInput: { title: 'VOLUME FLOW MULT',  unit: '',     min: 0,              fieldType: 'settings-volume-mult' },
-    hotWaterFlowMultiplierInput: { title: 'HW FLOW MULT',    unit: 's',    min: 0,              fieldType: 'settings-hw-flow-mult' },
+    hotWaterFlowMultiplierInput: { title: 'HW FLOW MULT',    unit: '',     min: 0,              fieldType: 'settings-hw-flow-mult' },
     // Native type=number fields migrated onto the in-app numpad for a single,
     // consistent numeric-entry surface on the tablet (desktop keeps the native
     // control, since attachSettingsNumpad is gated on shouldUseNumpad()). The
@@ -81,7 +102,6 @@ const SETTINGS_NUMPAD_CONFIGS = {
     'sleep-timeout-input':       { title: 'SLEEP TIMEOUT',     unit: 'min',  min: 1,   max: 120,  fieldType: 'settings-sleep-timeout' },
     'brightness-number':         { title: 'BRIGHTNESS',        unit: '%',    min: 0,   max: 100,  fieldType: 'settings-brightness' },
     'screensaver-cycle-seconds': { title: 'IMAGE CYCLE',       unit: 'sec',  min: 2,   max: 600,  fieldType: 'settings-screensaver-cycle' },
-    'visualizer-min-duration':   { title: 'MIN SHOT DURATION', unit: 'sec',  min: 1,              fieldType: 'settings-visualizer-min' },
     'keep-awake-hours-input':    { title: 'KEEP AWAKE HOURS',  unit: 'hr',   min: 0,   max: 12,   fieldType: 'settings-keep-awake-hours' },
     'keep-awake-mins-input':     { title: 'KEEP AWAKE MINS',   unit: 'min',  min: 0,   max: 59,   fieldType: 'settings-keep-awake-mins' },
     // Bengle cup-warmer fields -- register so they open the in-app numpad on the
@@ -263,9 +283,28 @@ export function mergeStagedOverFetched(fetched, staged) {
     return { ...fetched, ...staged };
 }
 
+// Stage one field of a workflow block (steamSettings / hotWaterData). Only the
+// edited keys are staged, so a flush never rewrites fields the user left alone
+// with a stale snapshot from the cache.
+export function stageWorkflowField(pending, block, key, value) {
+    pending[block] = { ...(pending[block] || {}), [key]: value };
+}
+
 async function flushPendingChanges() {
     const tasks = [];
-    if (Object.keys(pendingChanges.rea).length) tasks.push(setReaSettings(pendingChanges.rea));
+    const usbPowerSettingsChanged = Object.prototype.hasOwnProperty.call(
+        pendingChanges.rea,
+        'skalePoweredByUsbByDevice',
+    );
+    if (Object.keys(pendingChanges.rea).length) {
+        tasks.push(setReaSettings(pendingChanges.rea).then(() => {
+            // The USB write can succeed even when an unrelated settings write fails.
+            if (shouldInvalidateScaleInfoAfterWrite({ reaSucceeded: true, usbPowerSettingsChanged })) {
+                invalidateScaleInfo();
+                renderDeviceListFromCache();
+            }
+        }));
+    }
     if (Object.keys(pendingChanges.de1).length) tasks.push(setDe1Settings(pendingChanges.de1));
     if (Object.keys(pendingChanges.de1Advanced).length) tasks.push(setDe1AdvancedSettings(pendingChanges.de1Advanced));
     // The boot resync (api.resyncIfDrifted) compares Rea's workflow record
@@ -276,12 +315,14 @@ async function flushPendingChanges() {
     // over whatever was just saved here, on the next load.
     if (pendingChanges.workflow.steamSettings) {
         const steam = pendingChanges.workflow.steamSettings;
-        tasks.push(updateWorkflow({ steamSettings: steam }));
-        if (isNum(steam.duration)) persistSharedValue(STEAM_DURATION_LAST_VALUE_KEY, steam.duration);
+        tasks.push(updateWorkflow({ steamSettings: steam }, 'settings.steam'));
+        // Enabled values only, same rule as the temperature below: 0 is the
+        // heater switched off, and the key is what we switch back ON to.
+        if (steam.duration > 0) persistSharedValue(STEAM_DURATION_LAST_VALUE_KEY, steam.duration);
         if (isNum(steam.flow)) persistSharedValue(STEAM_FLOW_LAST_VALUE_KEY, steam.flow);
         // Enabled temperatures only: 0 is the heater switched off, and the main
         // page reads this key to decide what to switch back ON to when steam is
-        // re-armed -- see api.setTargetSteamDuration.
+        // switched back on -- see api.setSteamHeaterEnabled.
         if (steam.targetTemperature > 0) persistSharedValue(STEAM_TEMP_LAST_VALUE_KEY, steam.targetTemperature);
         // Armed targets only: 0 means the stop was switched off, not a
         // temperature worth remembering -- see api.setStopAtTemperature.
@@ -289,7 +330,7 @@ async function flushPendingChanges() {
     }
     if (pendingChanges.workflow.hotWaterData) {
         const water = pendingChanges.workflow.hotWaterData;
-        tasks.push(updateWorkflow({ hotWaterData: water }));
+        tasks.push(updateWorkflow({ hotWaterData: water }, 'settings.hotWater'));
         if (isNum(water.volume)) persistSharedValue(HOT_WATER_VOLUME_LAST_VALUE_KEY, water.volume);
         if (isNum(water.targetTemperature)) persistSharedValue(HOT_WATER_TEMP_LAST_VALUE_KEY, water.targetTemperature);
     }
@@ -311,6 +352,15 @@ let deviceStateCache = {
     scanning: false,
     initialized: false
 };
+const scaleInfoLifecycle = createScaleInfoLifecycle({
+    getScaleInfo,
+    getDeviceState: () => deviceStateCache,
+    renderDeviceListFromCache: () => renderDeviceListFromCache(),
+    logger,
+    isMounted: () => Boolean(document.getElementById('bluetooth-scale-devices-container')),
+});
+const { refreshScaleInfo, scaleInfoByDeviceId } = scaleInfoLifecycle;
+const invalidateScaleInfo = () => scaleInfoLifecycle.invalidate();
 
 // Render generic loading state
 function renderLoadingState(title) {
@@ -371,7 +421,7 @@ function renderErrorState(title, message) {
                 <p class="leading-[1.2]">${escapeHtml(title)}</p>
             </div>
             <div class="text-red-500 p-4 text-[24px] text-center w-full">Failed to load settings: ${escapeHtml(message)}</div>
-            <button class="bg-[#385a92] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold mx-auto mt-4" onclick="window.retryLoadSettings()" data-i18n-key="Retry">Retry</button>
+            <button class="bg-[var(--button-primary-bg)] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold mx-auto mt-4" onclick="window.retryLoadSettings()" data-i18n-key="Retry">Retry</button>
         </div>
     `;
 }
@@ -399,7 +449,7 @@ function syncBrightnessSliderFill(slider, value) {
     const centrePx = (thumb / 2) + (v / 100) * (track - thumb);
     const stop = (centrePx / track) * 100;
     slider.style.background =
-        `linear-gradient(to right, #385a92 0%, #385a92 ${stop}%, #e8e8e8 ${stop}%, #e8e8e8 100%)`;
+        `linear-gradient(to right, var(--button-primary-bg) 0%, var(--button-primary-bg) ${stop}%, #e8e8e8 ${stop}%, #e8e8e8 100%)`;
 }
 
 // Light up the search words inside the page itself, not only in the nav on the
@@ -462,7 +512,9 @@ let maintenanceSequence = 0;
 async function mountMaintenanceCategory(category, container) {
     const sequence = ++maintenanceSequence;
     try {
-        const module = await import('./categories/maintenance.js');
+        const module = category === 'ble_grinder'
+            ? await import('./categories/connections.js')
+            : await import('./categories/maintenance.js');
         // Guard a fast switch away: a late import must not paint over the page
         // the user is now looking at.
         if (sequence !== maintenanceSequence) return;
@@ -472,15 +524,18 @@ async function mountMaintenanceCategory(category, container) {
     }
 }
 
-function updateSettingsContentArea(category) {
+// `nav` is passed only by the one call the user actually tapped for
+// (activateSubcategory); the other ~50 callers are re-renders after a write or a
+// language change, and timing those would bury the navigations in the log.
+function updateSettingsContentArea(category, nav = null) {
     // Always tear the previous maintenance mount down, including when moving
     // between two maintenance pages — its poller and listeners are per-mount.
     maintenanceSequence += 1;
     maintenanceCleanup?.();
     maintenanceCleanup = null;
-    // Leaving the Lighting page → flush any deferred cross-state palette PUT,
-    // THEN stop previewing (flush-before-clear: one strip transition, and the
-    // edit persists exactly as the old always-PUT behaviour did). Also release
+    // Leaving the Lighting page → stop previewing, so the strip shows the
+    // stored palette again. An unsaved edit is NOT written here: only the
+    // page's Save and the header Save persist (ledSaveOnExit). Also release
     // this page's 'manual' sequence-run ownership -- a state-triggered run
     // (led-strip-runner.js, driven from app.js) is untouched by this and keeps
     // running on whatever page the user goes to next.
@@ -494,6 +549,14 @@ function updateSettingsContentArea(category) {
         sensorCalLoadError = '';
         ({ shown: sensorCalWarningShown, ack: sensorCalWarningAck } = sensorCalWarningNextState(
             { shown: sensorCalWarningShown, ack: sensorCalWarningAck }, 'leave').state);
+        sensorCalAdvancedOpen = false;
+        sensorCalFlowError = '';
+        // Re-read the multiplier and who owns it on the next visit. The plugin
+        // moves the value between visits, and can be switched off from its own
+        // page, so a value cached for the whole app session goes stale on a
+        // control the user cannot correct.
+        sensorCalFlowLoaded = false;
+        sensorCalFlowManaged = null;
         document.getElementById('sensor-cal-warning-modal')?.close();
     }
     // Leaving the Cup Warmer page → stop its ~5 s revalidate poll.
@@ -516,11 +579,18 @@ function updateSettingsContentArea(category) {
     const contentArea = document.getElementById('settings-content-area');
     if (contentArea) {
         contentArea.innerHTML = renderSettingsContent(category);
+        nav?.mark('render');
         translatePage();
+        nav?.mark('translate');
         // The CSS default is a fixed 75% stop, so without this the bar sits at 75%
         // on first paint no matter what the value is.
         const slider = contentArea.querySelector('#brightness-slider');
-        if (slider) syncBrightnessSliderFill(slider, slider.value);
+        if (slider) {
+            syncBrightnessSliderFill(slider, slider.value);
+            refreshBrightnessNotices(Number(slider.value));
+        }
+        const saverSlider = contentArea.querySelector('#saver-brightness-slider');
+        if (saverSlider) syncBrightnessSliderFill(saverSlider, saverSlider.value);
         if (category === 'theme') {
             setTimeout(() => {
                 ui.initThemeToggle();
@@ -555,25 +625,16 @@ function updateSettingsContentArea(category) {
         if (category === 'ledstrip') {
             setTimeout(initLedPicker, 0);
         }
-        if (MAINTENANCE_CATEGORIES.has(category)) {
+        if (MAINTENANCE_CATEGORIES.has(category) || category === 'ble_grinder') {
             mountMaintenanceCategory(category, contentArea);
         }
         if (category === 'calib_sensors') {
             setTimeout(initSensorCal, 0);
-            // Every render of this page (load completing, capture, edits,
-            // apply/restore) reaches this same branch -- sensorCalWarningNextState
-            // only opens on the first one of a visit, so the modal no longer
-            // reopens on each subsequent re-render.
-            const { state, open } = sensorCalWarningNextState(
-                { shown: sensorCalWarningShown, ack: sensorCalWarningAck }, 'render');
-            sensorCalWarningShown = state.shown;
-            sensorCalWarningAck = state.ack;
-            // `open` alone would leave the warning gone for good the moment an
-            // unrelated render interrupts it before the user has acted on it
-            // -- see sensorCalWarningShouldReopen for why folding in
-            // sensorCalWarningWasOpen (captured above, before the rebuild) is
-            // safe against reopening on a user-driven render.
-            if (sensorCalWarningShouldReopen(open, sensorCalWarningWasOpen)) setTimeout(sensorCalShowWarning, 0);
+            // The warning guards the Advanced table only, and is opened by
+            // sensorCalAdvancedToggle -- not by rendering. A render can still
+            // destroy it mid-flight (every render rebuilds the <dialog>), so
+            // an interrupted showing is resumed on the fresh node.
+            if (sensorCalWarningShouldReopen(false, sensorCalWarningWasOpen)) setTimeout(sensorCalShowWarning, 0);
         }
         // Step 4's live readout needs the scale WS — claim it on every render
         // of the page at step 4 (idempotent), so returning to a resumed wizard
@@ -583,6 +644,30 @@ function updateSettingsContentArea(category) {
         // After translatePage(), so the marks land on the text actually shown.
         highlightSearchInContent();
     }
+}
+
+
+// The range hint that sits beside a numeric settings label, and the one place
+// that decides how a value outside that range is shown.
+//
+// Normally the muted hint the Figma settings pattern specifies (20px, 60%
+// opacity, beside the blue label). When the machine reports a value the range
+// does not contain, the hint turns red and names the offending value, so the
+// page never silently shows a number it claims is impossible -- see
+// isOutOfRange in settings-restore.js for why it is shown rather than clamped.
+//
+// Figma has no error state for a settings field (its Style Guide carries
+// Action/Background/Buttons/Text/Border/Status.Ongoing and no danger token),
+// so this reuses the red these settings pages already use for their
+// "Failed to load settings" state.
+function rangeHint(min, max, unit, value, decimals = 0) {
+    const fmt = n => Number(n).toFixed(decimals);
+    const suffix = unit ? ` ${unit}` : '';
+    const range = `${fmt(min)} – ${fmt(max)}${suffix}`;
+    if (!isOutOfRange(value, min, max)) {
+        return `<span class="text-[20px] font-normal opacity-60 text-[var(--text-primary)]">${range}</span>`;
+    }
+    return `<span class="text-[20px] font-normal text-red-500" data-out-of-range="true">${range} · ${getTranslation('machine reports')} ${fmt(value)}${suffix}</span>`;
 }
 
 // Helper function to check if settings are loaded
@@ -630,8 +715,7 @@ export function updateSteamSetting(key, value) {
     if (!settingsCache.workflow) settingsCache.workflow = {};
     if (!settingsCache.workflow.steamSettings) settingsCache.workflow.steamSettings = {};
     settingsCache.workflow.steamSettings[key] = value;
-    if (!pendingChanges.workflow.steamSettings) pendingChanges.workflow.steamSettings = { ...(settingsCache.workflow.steamSettings) };
-    pendingChanges.workflow.steamSettings[key] = value;
+    stageWorkflowField(pendingChanges.workflow, 'steamSettings', key, value);
 }
 
 // Update hot water settings via workflow API
@@ -639,8 +723,7 @@ export function updateHotWaterSetting(key, value) {
     if (!settingsCache.workflow) settingsCache.workflow = {};
     if (!settingsCache.workflow.hotWaterData) settingsCache.workflow.hotWaterData = {};
     settingsCache.workflow.hotWaterData[key] = value;
-    if (!pendingChanges.workflow.hotWaterData) pendingChanges.workflow.hotWaterData = { ...(settingsCache.workflow.hotWaterData) };
-    pendingChanges.workflow.hotWaterData[key] = value;
+    stageWorkflowField(pendingChanges.workflow, 'hotWaterData', key, value);
 }
 
 
@@ -684,13 +767,13 @@ async function saveSettingsBackup() {
     }
 }
 
-// ── Restore the user's own machine settings ────────────────────────────────
+// ── Keep track of the user's own machine settings ──────────────────────────
 //
 // Two halves: remember what the user saved here (syncMachineSettingsRecord),
-// and, when the machine later reports something else, put the user's values
-// straight back (checkMachineSettingsDrift). What the user chose in this skin
-// always wins, so the difference is applied rather than queried -- see
-// settings-restore.js for what is tracked and what is left alone.
+// and, when the machine later reports something else, decide what that means
+// (checkMachineSettingsDrift). A change made elsewhere is adopted, not undone;
+// only a value an older Decaid resets on connect is put back -- see
+// settings-restore.js for what is tracked, what is left alone and why.
 
 const USER_MACHINE_SETTINGS_KEY = 'userMachineSettings';
 
@@ -731,6 +814,17 @@ async function syncMachineSettingsRecord(written = {}) {
         settingsCache.de1Advanced = de1Advanced;
         const existing = await readUserMachineSettings();
         await writeUserMachineSettings(adoptFromMachine(existing, { de1, de1Advanced }, written));
+        // Only the save path passes `written`, so every other caller stays silent.
+        // The read-back happens in the same breath as the write (see flushPendingChanges),
+        // so a machine that needs a moment, or a reboot, also lands here: report what
+        // was observed, not a diagnosis.
+        for (const r of rejectedWrites(written, { de1, de1Advanced })) {
+            logger.warn(`Machine still reports ${r.key} as ${JSON.stringify(r.actual)} after a write asking for ${JSON.stringify(r.asked)}`);
+            const label = r.key === 'usb' ? 'USB Charger Mode' : r.key;
+            const state = normalizeSettingValue(r.key, r.actual);
+            const shown = state === true ? 'on' : state === false ? 'off' : String(state);
+            ui.showToast(`Your machine still reports ${label} as ${shown}`, 5000, 'error');
+        }
     } catch (e) {
         // A failed read-back leaves the record as it was: better to ask about a
         // difference later than to record a value the machine never confirmed.
@@ -754,17 +848,32 @@ async function checkMachineSettingsDrift() {
     });
     if (!differences.length) return;
 
+    // Which differences count as a reset depends on the Decaid being talked to.
+    // preloadSettings() has already run, so appInfo is in the cache.
+    const { restore, adopt } = splitDifferences(differences, settingsCache.appInfo?.version);
+    if (adopt.length) {
+        logger.info(`Machine settings changed elsewhere, keeping: ${adopt.map(d => d.key).join(', ')}`);
+    }
+    if (!restore.length) {
+        // Nothing to write: the record takes the machine's values so the same
+        // change is not weighed again on the next visit. The page is already
+        // showing them, so there is nothing to repaint.
+        await syncMachineSettingsRecord();
+        return;
+    }
+
     // Only the keys that differ are written, and the caches are refreshed from
     // the machine afterwards so the page shows what the machine actually took
-    // rather than what was asked for.
-    const patches = restorePatches(differences);
+    // rather than what was asked for. The same read-back adopts whatever was
+    // changed elsewhere.
+    const patches = restorePatches(restore);
     try {
         const tasks = [];
         if (patches.de1) tasks.push(setDe1Settings(patches.de1));
         if (patches.de1Advanced) tasks.push(setDe1AdvancedSettings(patches.de1Advanced));
         await Promise.all(tasks);
         await syncMachineSettingsRecord();
-        // Silent on success: putting the user's own values back is not news.
+        // Silent on success: putting back a value Decaid reset is not news.
         if (activeSettingsCategory) updateSettingsContentArea(activeSettingsCategory);
     } catch (e) {
         logger.error('Failed to restore machine settings', e);
@@ -893,6 +1002,7 @@ export function renderSettingsContent(category) {
         case 'maint_cleaning':
         case 'maint_descaling':
         case 'maint_airpurge':
+        case 'ble_grinder':
             // Mounted by the extracted category module, not rendered here.
             return '';
         case 'theme':
@@ -907,16 +1017,14 @@ export function renderSettingsContent(category) {
             return renderPluginManagerSettings();
         case 'shotupload':
             return renderShotUploadSettings();
-        case 'extensions':
-        case 'extention1':
-        case 'extention2':
-            return renderExtensionsSettings();
         case 'screensaver':
             return renderScreenSaverSettings();
         case 'brightness':
             return renderBrightnessSettings();
         case 'wakelock':
             return renderWakeLockSettings();
+        case 'sounds':
+            return renderSoundSettings();
         case 'presence':
             return renderPresenceSettings();
         case 'unitssettings':
@@ -927,10 +1035,6 @@ export function renderSettingsContent(category) {
             return renderTempUnitSettings();
         case 'resolution':
             return renderResolutionSettings();
-        case 'machineadvancedsettings':
-        case 'misc':
-        case 'miscellaneous':
-            return renderMiscellaneousSettings();
         case 'firmware':
         case 'firmwareupdate':
             return renderFirmwareUpdateSettings();
@@ -985,11 +1089,11 @@ export function renderFlowMultiplierSettings(settings) {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <div class="content-stretch flex flex-col items-center relative w-full">
-                <div class="border border-[#c9c9c9] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px]">
+                <div class="border border-[var(--border-primary)] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px]">
                     <div class="content-stretch flex items-center relative shrink-0">
                         <p id="weight-flow-multiplier-label" class="font-['Inter:Regular',sans-serif] font-normal leading-[1.2] not-italic relative shrink-0 text-[var(--text-primary)] text-[30px]" data-i18n-key="Weight Flow Multiplier">
                             Weight Flow Multiplier
@@ -1021,7 +1125,7 @@ export function renderFlowMultiplierSettings(settings) {
                     </p>
                 </div>
 
-                <div class="border border-[#c9c9c9] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px] mt-[30px]">
+                <div class="border border-[var(--border-primary)] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px] mt-[30px]">
                     <div class="content-stretch flex items-center relative shrink-0">
                         <p id="volume-flow-multiplier-label" class="font-['Inter:Regular',sans-serif] font-normal leading-[1.2] not-italic relative shrink-0 text-[var(--text-primary)] text-[30px]" data-i18n-key="Volume Flow Multiplier (s)">
                             Volume Flow Multiplier (s)
@@ -1099,20 +1203,20 @@ export function renderReaSettingsForm(settings) {
     const appInfo = settingsCache.appInfo;
     const appInfoDetails = appInfo ? `
                 <div class="grid gap-[12px] sm:grid-cols-2">
-                    <div class="rounded-[10px] border border-[#c9c9c9] px-4 py-3 bg-[var(--box-color)]">
-                        <p class="text-[20px] font-['Inter:Bold',sans-serif] font-bold text-[#385a92]" data-i18n-key="Version">Version</p>
+                    <div class="rounded-[10px] border border-[var(--border-primary)] px-4 py-3 bg-[var(--box-color)]">
+                        <p class="text-[20px] font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)]" data-i18n-key="Version">Version</p>
                         <p class="text-[24px] font-['Inter:Regular',sans-serif]">${appInfo.version} (${appInfo.buildNumber})</p>
                         <p class="text-[16px] text-[var(--text-secondary)]">${appInfo.fullVersion} &middot; ${formatBuildTimestamp(appInfo.buildTime)}</p>
                     </div>
-                    <div id="app-update-section" class="rounded-[10px] border border-[#c9c9c9] px-4 py-3 bg-[var(--box-color)]">${renderAppUpdateBlock(settingsCache.appUpdateState)}</div>
+                    <div id="app-update-section" class="rounded-[10px] border border-[var(--border-primary)] px-4 py-3 bg-[var(--box-color)]">${renderAppUpdateBlock(settingsCache.appUpdateState)}</div>
                 </div>
             ` : `
                 <div class="grid gap-[12px] sm:grid-cols-2">
-                    <div class="rounded-[10px] border border-[#c9c9c9] px-4 py-3 bg-[var(--box-color)]">
-                        <p class="text-[20px] font-['Inter:Bold',sans-serif] font-bold text-[#385a92]" data-i18n-key="Version">Version</p>
+                    <div class="rounded-[10px] border border-[var(--border-primary)] px-4 py-3 bg-[var(--box-color)]">
+                        <p class="text-[20px] font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)]" data-i18n-key="Version">Version</p>
                         <p class="text-[24px] font-['Inter:Regular',sans-serif]" data-i18n-key="Fetching build metadata...">Fetching build metadata...</p>
                     </div>
-                    <div id="app-update-section" class="rounded-[10px] border border-[#c9c9c9] px-4 py-3 bg-[var(--box-color)]">${renderAppUpdateBlock(settingsCache.appUpdateState)}</div>
+                    <div id="app-update-section" class="rounded-[10px] border border-[var(--border-primary)] px-4 py-3 bg-[var(--box-color)]">${renderAppUpdateBlock(settingsCache.appUpdateState)}</div>
                 </div>
             `;
 
@@ -1124,30 +1228,30 @@ export function renderReaSettingsForm(settings) {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <div class="flex flex-col items-start relative w-full max-w-full">
                 <div class="flex flex-col gap-[30px] items-start relative w-full max-w-full">
                     <div class="flex flex-col items-start relative w-full max-w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px] mb-[20px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px] mb-[20px]">
                             <p id="gateway-mode-label" class="leading-[1.2]" data-i18n-key="Gateway Mode">Gateway Mode</p>
                         </div>
                         <div class="flex items-center justify-between w-full max-w-[885px]" role="group" aria-labelledby="gateway-mode-label">
                             <button class="h-[120px] w-[295px] rounded-[10px] font-['Inter:Bold',sans-serif] font-bold text-[30px] flex items-center justify-center cursor-pointer transition-colors duration-200
-                                ${settings.gatewayMode === 'disabled' ? 'bg-[var(--mimoja-blue)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
+                                ${settings.gatewayMode === 'disabled' ? 'bg-[var(--button-primary-bg)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
                                 aria-pressed="${settings.gatewayMode === 'disabled'}"
                                 onclick="window.updateReaSetting('gatewayMode', 'disabled')" data-i18n-key="Disabled">
                                 Disabled
                             </button>
                             <button class="h-[120px] w-[295px] rounded-[10px] font-['Inter:Bold',sans-serif] font-bold text-[30px] flex items-center justify-center cursor-pointer transition-colors duration-200
-                                ${settings.gatewayMode === 'tracking' ? 'bg-[var(--mimoja-blue)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
+                                ${settings.gatewayMode === 'tracking' ? 'bg-[var(--button-primary-bg)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
                                 aria-pressed="${settings.gatewayMode === 'tracking'}"
                                 onclick="window.updateReaSetting('gatewayMode', 'tracking')">
                                 Tracking
                             </button>
                             <button class="h-[120px] w-[295px] rounded-[10px] font-['Inter:Bold',sans-serif] font-bold text-[30px] flex items-center justify-center cursor-pointer transition-colors duration-200
-                                ${settings.gatewayMode === 'full' ? 'bg-[var(--mimoja-blue)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
+                                ${settings.gatewayMode === 'full' ? 'bg-[var(--button-primary-bg)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
                                 aria-pressed="${settings.gatewayMode === 'full'}"
                                 onclick="window.updateReaSetting('gatewayMode', 'full')">
                                 Full
@@ -1162,16 +1266,16 @@ export function renderReaSettingsForm(settings) {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <div class="flex flex-col items-start relative w-full max-w-full">
                 <div class="flex flex-col gap-[30px] items-start relative w-full max-w-full">
                     <div class="flex items-center justify-between relative w-full max-w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p id="log-level-label" class="leading-[1.2]" data-i18n-key="Log Level">Log Level</p>
                         </div>
-                        <select id="logLevelSelect" aria-labelledby="log-level-label" class="bg-[#385a92] border-2 border-[#385a92] border-solid h-[62.88px] rounded-[2617.374px] w-[250px] text-white text-[24px] p-2 max-w-[250px]"
+                        <select id="logLevelSelect" aria-labelledby="log-level-label" class="bg-[var(--button-primary-bg)] border-2 border-[var(--mimoja-blue-v2)] border-solid h-[62.88px] rounded-[2617.374px] w-[250px] text-white text-[24px] p-2 max-w-[250px]"
                                 onchange="window.updateReaSetting('logLevel', this.value)">
                             <option value="ALL" ${settings.logLevel === 'ALL' ? 'selected' : ''} data-i18n-key="ALL">ALL</option>
                             <option value="FINEST" ${settings.logLevel === 'FINEST' ? 'selected' : ''} data-i18n-key="FINEST">FINEST</option>
@@ -1191,15 +1295,15 @@ export function renderReaSettingsForm(settings) {
                 </div>
             </div>
 
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
 
             <div class="flex flex-col items-start relative w-full max-w-full">
                 <div class="flex flex-col gap-[30px] items-start relative w-full max-w-full">
                     <div class="flex items-center justify-between relative w-full max-w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Automatic Update Checks">Automatic Update Checks</p>
                         </div>
-                        <select class="bg-[#385a92] border-2 border-[#385a92] border-solid h-[62.88px] rounded-[2617.374px] w-[250px] text-white text-[24px] p-2 max-w-[250px]"
+                        <select class="bg-[var(--button-primary-bg)] border-2 border-[var(--mimoja-blue-v2)] border-solid h-[62.88px] rounded-[2617.374px] w-[250px] text-white text-[24px] p-2 max-w-[250px]"
                                 onchange="window.updateReaSetting('automaticUpdateCheck', this.value === 'true')">
                             <option value="true" ${settings.automaticUpdateCheck !== false ? 'selected' : ''} data-i18n-key="Enabled">Enabled</option>
                             <option value="false" ${settings.automaticUpdateCheck === false ? 'selected' : ''} data-i18n-key="Disabled">Disabled</option>
@@ -1211,18 +1315,18 @@ export function renderReaSettingsForm(settings) {
                 </div>
             </div>
 
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
 
             <div class="w-full flex flex-col gap-[12px]">
-                <p class="font-['Inter:Bold',sans-serif] font-bold text-[#385a92] text-[30px] leading-[1.2]">Decaid <span data-i18n-key="Update info">Update info</span></p>
+                <p class="font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)] text-[30px] leading-[1.2]">Decaid <span data-i18n-key="Update info">Update info</span></p>
                 ${appInfoDetails}
             </div>
 
             ${settings.webUiPath ? `
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
             <div class="flex flex-col items-start relative w-full max-w-full">
                 <div class="flex flex-col gap-[20px] items-start relative w-full max-w-full">
-                    <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                    <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                         <p class="leading-[1.2]" data-i18n-key="Web UI Path">Web UI Path</p>
                     </div>
                     <p class="font-['Inter:Regular',sans-serif] font-normal text-[20px] text-[var(--text-secondary)] break-all">${settings.webUiPath}</p>
@@ -1230,15 +1334,15 @@ export function renderReaSettingsForm(settings) {
             </div>
             ` : ''}
 
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
 
             <div class="flex flex-col items-start relative w-full max-w-full">
                 <div class="flex flex-col gap-[30px] items-start relative w-full max-w-full">
                     <div class="flex items-center justify-between relative w-full max-w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Go to Dashboard">Go to Dashboard</p>
                         </div>
-                        <button type="button" class="bg-[#385a92] h-[62.88px] px-[48px] rounded-[2617.374px] text-white text-[24px] font-bold"
+                        <button type="button" class="bg-[var(--button-primary-bg)] h-[62.88px] px-[48px] rounded-[2617.374px] text-white text-[24px] font-bold"
                                 onclick="window.exitToDecentDashboard()" data-i18n-key="Go">Go</button>
                     </div>
                 </div>
@@ -1270,11 +1374,11 @@ export function renderFlushSettingsForm(settings) {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <div class="content-stretch flex flex-col items-center relative w-full">
-                <div class="border border-[#c9c9c9] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px]">
+                <div class="border border-[var(--border-primary)] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px]">
                     <div class="content-stretch flex items-baseline gap-[14px] relative shrink-0">
                         <p id="flush-temp-label" class="font-['Inter:Regular',sans-serif] font-normal leading-[1.2] not-italic relative shrink-0 text-[var(--text-primary)] text-[30px]" data-i18n-key="Temperature for flush cycles">
                             Temperature for flush cycles
@@ -1305,7 +1409,7 @@ export function renderFlushSettingsForm(settings) {
                     </div>
                 </div>
 
-                <div class="border border-[#c9c9c9] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px] mt-[30px]">
+                <div class="border border-[var(--border-primary)] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px] mt-[30px]">
                     <div class="content-stretch flex items-baseline gap-[14px] relative shrink-0">
                         <p id="flush-flow-label" class="font-['Inter:Regular',sans-serif] font-normal leading-[1.2] not-italic relative shrink-0 text-[var(--text-primary)] text-[30px]" data-i18n-key="Flush flow rate">
                             Flush flow rate
@@ -1369,17 +1473,17 @@ export function renderFanThresholdSettings(settings) {
 
                 <!-- Label row -->
                 <div class="flex items-center gap-[10px]">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#385a92]">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[var(--mimoja-blue-v2)]">
                         <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
                     </svg>
-                    <span class="text-[#385a92] text-[24px] font-bold tracking-wide uppercase" data-i18n-key="Fan Activation Temperature">Fan Activation Temperature</span>
+                    <span class="text-[var(--mimoja-blue-v2)] text-[24px] font-bold tracking-wide uppercase" data-i18n-key="Fan Activation Temperature">Fan Activation Temperature</span>
                 </div>
 
                 <!-- Stepper controls -->
                 <div class="flex items-center gap-[24px]">
                     <button id="fan-decrement"
                             onclick="window.stepFanThreshold(-1)"
-                            class="w-[88px] h-[88px] rounded-full border-2 border-[#385a92] bg-[var(--box-color)] text-[#385a92] text-[40px] font-bold flex items-center justify-center active:bg-[#385a92] active:text-white transition-colors select-none"
+                            class="w-[88px] h-[88px] rounded-full border-2 border-[var(--mimoja-blue-v2)] bg-[var(--box-color)] text-[var(--mimoja-blue-v2)] text-[40px] font-bold flex items-center justify-center active:bg-[var(--button-primary-bg)] active:text-white transition-colors select-none"
                             aria-label="Decrease fan threshold">
                         −
                     </button>
@@ -1388,14 +1492,14 @@ export function renderFanThresholdSettings(settings) {
                         <div class="flex items-end gap-[6px]">
                             <span id="fan-display" class="text-[var(--text-primary)] font-bold leading-none"
                                   style="font-size: 96px; font-family: 'Inter', monospace; letter-spacing: -2px;">${pct}</span>
-                            <span class="text-[#385a92] text-[36px] font-bold mb-[12px]">°C</span>
+                            <span class="text-[var(--mimoja-blue-v2)] text-[36px] font-bold mb-[12px]">°C</span>
                         </div>
                         <input type="hidden" id="fanThresholdInput" value="${pct}">
                     </div>
 
                     <button id="fan-increment"
                             onclick="window.stepFanThreshold(1)"
-                            class="w-[88px] h-[88px] rounded-full border-2 border-[#385a92] bg-[var(--box-color)] text-[#385a92] text-[40px] font-bold flex items-center justify-center active:bg-[#385a92] active:text-white transition-colors select-none"
+                            class="w-[88px] h-[88px] rounded-full border-2 border-[var(--mimoja-blue-v2)] bg-[var(--box-color)] text-[var(--mimoja-blue-v2)] text-[40px] font-bold flex items-center justify-center active:bg-[var(--button-primary-bg)] active:text-white transition-colors select-none"
                             aria-label="Increase fan threshold">
                         +
                     </button>
@@ -1405,7 +1509,7 @@ export function renderFanThresholdSettings(settings) {
                 <div class="w-full flex flex-col gap-[8px]">
                     <div class="w-full h-[8px] rounded-full bg-[var(--profile-button-outline-color)] overflow-hidden">
                         <div id="fan-track-fill"
-                             class="h-full rounded-full bg-[#385a92] transition-all duration-150"
+                             class="h-full rounded-full bg-[var(--button-primary-bg)] transition-all duration-150"
                              style="width: ${pct}%"></div>
                     </div>
                     <div class="flex justify-between text-[18px] text-[var(--text-primary)] opacity-50">
@@ -1425,14 +1529,15 @@ export function renderFanThresholdSettings(settings) {
     `;
 }
 
-// Render USB Charger settings — combines USB charger toggle + Smart Charging controls
+// Render the Smart Charging page: charging mode, night mode and live status.
+// No manual USB switch -- see the note in the markup below.
 export function renderUsbChargerModeSettings(settings) {
     const reaSettings = settingsCache.rea;
     if (!settings || !reaSettings) {
         return `
             <div class="content-stretch flex flex-col gap-[60px] items-start relative w-full">
                 <div class="flex flex-col font-['Inter:Semi_Bold',sans-serif] font-semibold justify-center leading-[0] min-w-full not-italic relative text-[var(--text-primary)] text-[36px] text-center w-[min-content]">
-                    <p class="leading-[1.2]">USB</p>
+                    <p class="leading-[1.2]" data-i18n-key="Smart Charging">${getTranslation('Smart Charging')}</p>
                 </div>
                 <div class="text-red-500 p-4 text-[24px]" data-i18n-key="Failed to load settings">Failed to load settings</div>
             </div>
@@ -1443,24 +1548,15 @@ export function renderUsbChargerModeSettings(settings) {
     const nightModeEnabled = reaSettings.nightModeEnabled || false;
     const sleepTime = reaSettings.nightModeSleepTime ?? 1320;
     const morningTime = reaSettings.nightModeMorningTime ?? 420;
-    const chargingState = reaSettings.chargingState;
     // Native time picker (dropdown + spinner) follows color-scheme, not our
     // CSS vars — match it to the active theme so it renders dark.
-    const pickerScheme = (localStorage.getItem('theme') || 'light') === 'dark' ? 'dark' : 'light';
-
-    const phaseLabels = {
-        inactive: 'Inactive',
-        normal: 'Normal',
-        hovering: 'Hovering',
-        chargingToMax: 'Charging to Max',
-        sleeping: 'Sleeping'
-    };
+    const pickerScheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
 
     // Sleep/Morning share one row — they're both night-mode params, so nesting
     // them keeps the page short instead of two full-height stacked sections.
     const timeField = (id, label, value, kind) => `
-        <div class="flex-1 flex items-center justify-between gap-[16px] bg-[var(--box-color)] border-2 border-[#385a92] rounded-[16px] px-[24px] h-[80px]">
-            <span class="font-['Inter:Bold',sans-serif] font-bold text-[#385a92] text-[26px]">${label}</span>
+        <div class="flex-1 flex items-center justify-between gap-[16px] bg-[var(--box-color)] border-2 border-[var(--mimoja-blue-v2)] rounded-[16px] px-[24px] h-[80px]">
+            <span class="font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)] text-[26px]">${label}</span>
             <input type="time" id="${id}" lang="en-US"
                    style="color-scheme: ${pickerScheme}"
                    class="bg-transparent text-[var(--text-primary)] text-[28px] font-bold text-right w-[210px] outline-none cursor-pointer"
@@ -1470,12 +1566,12 @@ export function renderUsbChargerModeSettings(settings) {
         </div>`;
 
     const nightModeSection = chargingMode !== 'disabled' ? `
-        <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+        <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
 
         <div class="flex flex-col gap-[16px] w-full">
             <div class="flex items-center justify-between gap-[24px] w-full">
                 <div class="flex flex-col gap-[4px]">
-                    <p class="font-['Inter:Bold',sans-serif] font-bold text-[#385a92] text-[30px] leading-[1.2]" data-i18n-key="Night Mode">Night Mode</p>
+                    <p class="font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)] text-[30px] leading-[1.2]" data-i18n-key="Night Mode">Night Mode</p>
                     <p class="font-['Inter:Regular',sans-serif] font-normal text-[var(--text-primary)] text-[22px] leading-[1.3]" data-i18n-key="Charge conservatively overnight between a sleep and morning time">Charge conservatively overnight between a sleep and morning time</p>
                 </div>
                 <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
@@ -1483,7 +1579,7 @@ export function renderUsbChargerModeSettings(settings) {
                            class="sr-only peer"
                            ${nightModeEnabled ? 'checked' : ''}
                            onchange="handleNightModeToggle(this.checked)">
-                    <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                    <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                     <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
                 </label>
             </div>
@@ -1495,58 +1591,28 @@ export function renderUsbChargerModeSettings(settings) {
         </div>
     ` : '';
 
-    const statusSection = chargingState ? `
-        <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
-
-        <div class="content-stretch flex flex-col items-start relative w-full">
-            <div class="content-stretch flex flex-col gap-[12px] items-start relative w-full">
-                <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
-                    <p class="leading-[1.2]" data-i18n-key="Charging Status">Charging Status</p>
-                </div>
-                <div class="grid grid-cols-2 gap-x-8 gap-y-4 w-full text-[22px] text-[var(--text-primary)]">
-                    <span class="font-semibold" data-i18n-key="Battery">Battery</span>
-                    <span>${chargingState.batteryPercent ?? '--'}%${chargingState.isEmergency ? ' (emergency)' : ''}</span>
-                    <span class="font-semibold" data-i18n-key="Phase">Phase</span>
-                    <span>${getTranslation(phaseLabels[chargingState.currentPhase] || chargingState.currentPhase || '--')}</span>
-                    <span class="font-semibold">USB</span>
-                    <span>${getTranslation(chargingState.usbChargerOn ? 'ON' : 'OFF')}</span>
-                </div>
-            </div>
-        </div>
-    ` : '';
 
     return `
         <div class="content-stretch flex flex-col gap-[24px] items-start relative w-full">
 
             <div class="flex flex-col font-['Inter:Semi_Bold',sans-serif] font-semibold justify-center leading-[0] min-w-full not-italic relative text-[var(--text-primary)] text-[36px] text-center w-[min-content]">
-                <p class="leading-[1.2]">USB</p>
+                <p class="leading-[1.2]" data-i18n-key="Smart Charging">${getTranslation('Smart Charging')}</p>
             </div>
 
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
 
-            <div class="flex items-center justify-between gap-[24px] w-full">
-                <div class="flex flex-col gap-[4px]">
-                    <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
-                        <p class="leading-[1.2]" id="usbChargerModeLabel" data-i18n-key="USB Charger Mode">USB Charger Mode</p>
-                    </div>
-                </div>
-                <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
-                    <!-- Default on: an unset usb value means the machine never had
-                         the setting written, and USB power is on out of the box. -->
-                    <input type="checkbox" id="usbChargerModeToggle"
-                           class="sr-only peer"
-                           ${(settings.usb === false || settings.usb === 'disable') ? '' : 'checked'}
-                           onchange="window.updateDe1Setting('usb', this.checked ? 'enable' : 'disable')">
-                    <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
-                    <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
-                </label>
-            </div>
-
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
-
+            <!-- No manual USB switch here. Decaid's battery controller owns the DE1's
+                 allowUSBCharging register: it writes setUsbChargerMode(decision) on a
+                 60s loop from Charging Mode and the battery level, re-asserts "off"
+                 every 5 minutes while a managed mode says don't charge, and forces it
+                 ON below 15% and whenever Charge-to-100% transitions to charging
+                 (reaprime battery_controller.dart / charging_logic.dart). A toggle
+                 here could not hold its value in ANY mode, so it only ever lied about
+                 the machine. Charging Mode below is the control; the live state is in
+                 Charging Status. -->
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[12px] items-start relative w-full">
-                    <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                    <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                         <p class="leading-[1.2]" data-i18n-key="Charging Mode">Charging Mode</p>
                     </div>
                     <div class="grid grid-cols-2 gap-[12px] w-full">
@@ -1562,7 +1628,7 @@ export function renderUsbChargerModeSettings(settings) {
                                 aria-pressed="${active}"
                                 class="flex flex-col items-start justify-center gap-[4px] px-[24px] py-[14px] rounded-[14px] border-2 transition-colors duration-150 cursor-pointer text-left
                                     ${active
-                                        ? 'bg-[#385a92] border-[#385a92] text-white'
+                                        ? 'bg-[var(--button-primary-bg)] border-[var(--mimoja-blue-v2)] text-white'
                                         : 'bg-[var(--box-color)] border-[var(--profile-button-outline-color)] text-[var(--text-primary)]'}">
                                 <span class="font-['Inter:Bold',sans-serif] font-bold text-[26px] leading-tight">${label}</span>
                                 <span class="font-['Inter:Regular',sans-serif] text-[19px] leading-snug opacity-80">${sub}</span>
@@ -1574,10 +1640,10 @@ export function renderUsbChargerModeSettings(settings) {
 
             ${nightModeSection}
 
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
 
             <div class="content-stretch flex items-center justify-between gap-[24px] relative w-full">
-                <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                     <p class="leading-[1.2]" data-i18n-key="Dim the screen when low battery">Dim the screen when low battery</p>
                 </div>
                 <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
@@ -1585,12 +1651,11 @@ export function renderUsbChargerModeSettings(settings) {
                            class="sr-only peer"
                            ${reaSettings.lowBatteryBrightnessLimit ? 'checked' : ''}
                            onchange="window.updateReaSetting('lowBatteryBrightnessLimit', this.checked)">
-                    <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                    <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                     <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
                 </label>
             </div>
 
-            ${statusSection}
         </div>
     `;
 }
@@ -1616,7 +1681,7 @@ export function renderDe1AdvancedSettingsForm(settings) {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <div class="content-stretch flex flex-col items-start relative w-full">
@@ -1653,7 +1718,7 @@ export function renderDe1AdvancedSettingsForm(settings) {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <div class="content-stretch flex flex-col items-start relative w-full">
@@ -1690,7 +1755,7 @@ export function renderDe1AdvancedSettingsForm(settings) {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <div class="content-stretch flex flex-col items-start relative w-full">
@@ -1727,7 +1792,7 @@ export function renderDe1AdvancedSettingsForm(settings) {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <div class="content-stretch flex flex-col items-start relative w-full">
@@ -1764,16 +1829,16 @@ export function renderDe1AdvancedSettingsForm(settings) {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Fast Start Defaults">Fast Start Defaults</p>
                         </div>
-                        <button class="bg-[#385a92] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold"
+                        <button class="bg-[var(--button-primary-bg)] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold"
                                 onclick="window.applyFastStartDefaults()" data-i18n-key="Apply">
                             Apply
                         </button>
@@ -1799,19 +1864,19 @@ export function renderQuickstartGuideSettings() {
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Quickstart Guide">Quick Start Guide</p>
                         </div>
-                        <a href="https://decentespresso.com/doc/quickstart/" class="bg-[#385a92] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold flex items-center justify-center">
+                        <a href="https://decentespresso.com/doc/quickstart/" class="bg-[var(--button-primary-bg)] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold flex items-center justify-center">
                             View
                         </a>
                     </div>
 
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Streamline User Manual">Streamline User Manual</p>
                         </div>
-                        <a href="https://github.com/decentespresso/streamline-js/blob/main/README.md" class="bg-[#385a92] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold flex items-center justify-center">
+                        <a href="https://github.com/decentespresso/streamline-js/blob/main/README.md" class="bg-[var(--button-primary-bg)] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold flex items-center justify-center">
                             View
                         </a>
                     </div>
@@ -1823,17 +1888,17 @@ export function renderQuickstartGuideSettings() {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <div class="content-stretch flex flex-col gap-[12px] items-start relative w-full">
                 <div class="content-stretch flex items-center justify-between relative w-full">
-                    <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                    <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                         <p class="leading-[1.2]" data-i18n-key="Show help button">Show help button</p>
                     </div>
                     <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
                         <input type="checkbox" id="help-icon-toggle" class="sr-only peer">
-                        <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                        <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                         <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
                     </label>
                 </div>
@@ -1861,7 +1926,7 @@ export function renderTalkToDecentSettings() {
             <!-- Header -->
             <div class="flex flex-col gap-[8px] w-full">
                 <div class="flex items-center gap-[16px]">
-                    <div class="w-[48px] h-[48px] rounded-full bg-[#385a92] flex items-center justify-center flex-shrink-0">
+                    <div class="w-[48px] h-[48px] rounded-full bg-[var(--button-primary-bg)] flex items-center justify-center flex-shrink-0">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2Z" fill="white"/>
                         </svg>
@@ -1896,7 +1961,7 @@ export function renderTalkToDecentSettings() {
 
                 <!-- Account badge -->
                 <div class="flex items-center p-[20px] rounded-[14px] bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] gap-[14px]">
-                    <div class="w-[40px] h-[40px] rounded-full bg-[#385a92] flex items-center justify-center text-white text-[18px] font-bold">D</div>
+                    <div class="w-[40px] h-[40px] rounded-full bg-[var(--button-primary-bg)] flex items-center justify-center text-white text-[18px] font-bold">D</div>
                     <div>
                         <p class="text-[20px] font-semibold text-[var(--text-primary)]">Decent account linked</p>
                         <p class="text-[18px] text-[var(--low-contrast-white)]" id="talkdecent-account-serial"></p>
@@ -1906,7 +1971,7 @@ export function renderTalkToDecentSettings() {
                 <!-- Chat thread -->
                 <div class="flex flex-col gap-[12px] w-full">
                     <div class="flex items-center justify-between">
-                        <p class="text-[22px] font-bold text-[#385a92]">Conversation History</p>
+                        <p class="text-[22px] font-bold text-[var(--mimoja-blue-v2)]">Conversation History</p>
                         <button id="talkdecent-refresh-btn"
                                 onclick="window.talkDecentRefresh()"
                                 class="h-[38px] px-[20px] rounded-[38px] bg-[var(--button-grey)] text-[var(--text-primary)] text-[18px] flex items-center gap-[8px] transition-opacity hover:opacity-80 disabled:opacity-40">
@@ -1926,30 +1991,30 @@ export function renderTalkToDecentSettings() {
 
                 <!-- New message compose -->
                 <div class="flex flex-col gap-[24px] w-full">
-                    <p class="text-[22px] font-bold text-[#385a92]">New Message</p>
+                    <p class="text-[22px] font-bold text-[var(--mimoja-blue-v2)]">New Message</p>
                     <input id="talkdecent-subject" type="hidden" value="">
                     <textarea id="talkdecent-message" class="hidden"></textarea>
                     <div id="talkdecent-compose-preview"
                          onclick="window.openTalkDecentMessageEditor()"
-                         class="cursor-pointer rounded-[14px] p-[20px] bg-[var(--box-color)] border-2 border-[#385a92] w-full min-h-[90px] select-none transition-colors hover:border-blue-400">
+                         class="cursor-pointer rounded-[14px] p-[20px] bg-[var(--box-color)] border-2 border-[var(--mimoja-blue-v2)] w-full min-h-[90px] select-none transition-colors hover:border-blue-400">
                         <p class="text-[20px] text-[var(--low-contrast-white)]">Tap to compose a message…</p>
                     </div>
                     <!-- Attach machine info toggle -->
                     <div class="flex items-center justify-between p-[20px] rounded-[12px] bg-[var(--box-color)] border border-[var(--profile-button-outline-color)]">
                         <div class="flex flex-col gap-[4px]">
-                            <p class="text-[22px] font-bold text-[#385a92]">Attach Machine Info</p>
+                            <p class="text-[22px] font-bold text-[var(--mimoja-blue-v2)]">Attach Machine Info</p>
                             <p class="text-[20px] text-[var(--low-contrast-white)]">Appends machine model, firmware version, and serial number</p>
                         </div>
                         <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
                             <input type="checkbox" id="talkdecent-attach-machine" checked class="sr-only peer">
-                            <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                            <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                             <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
                         </label>
                     </div>
                     <div class="flex items-center gap-[20px]">
                         <button id="talkdecent-send-btn"
                                 onclick="window.sendDecentMessage()"
-                                class="h-[64px] px-[48px] rounded-[64px] bg-[#385a92] text-white text-[24px] font-bold transition-opacity hover:opacity-90">
+                                class="h-[64px] px-[48px] rounded-[64px] bg-[var(--button-primary-bg)] text-white text-[24px] font-bold transition-opacity hover:opacity-90">
                             Send Message
                         </button>
                         <span id="talkdecent-send-status" class="text-[22px] leading-[1.4]"></span>
@@ -1970,18 +2035,24 @@ export function renderFeedbackSettings() {
         { value: 'question', label: 'General Feedback', sub: 'Share thoughts or ideas'  },
     ];
 
-    const categoryCards = categories.map(({ value, label, sub }) => `
-        <button data-feedback-card="${value}"
-                aria-pressed="${value === 'bug'}"
-                onclick="window.selectFeedbackCategory('${value}')"
+    const card = (attr, handler, active) => ({ value, label, sub }) => `
+        <button ${attr}="${value}"
+                aria-pressed="${value === active}"
+                onclick="window.${handler}('${value}')"
                 class="flex flex-col items-start gap-[4px] p-[14px] rounded-[12px] border-2 transition-colors
-                       ${value === 'bug'
-                           ? 'bg-[#385a92] border-[#385a92] text-white'
+                       ${value === active
+                           ? 'bg-[var(--button-primary-bg)] border-[var(--mimoja-blue-v2)] text-white'
                            : 'bg-[var(--box-color)] border-[var(--profile-button-outline-color)] text-[var(--text-primary)]'}">
             <span class="text-[20px] font-bold leading-tight">${label}</span>
             <span class="text-[16px] opacity-75 leading-tight">${sub}</span>
         </button>
-    `).join('');
+    `;
+
+    const categoryCards = categories.map(card('data-feedback-card', 'selectFeedbackCategory', 'bug')).join('');
+    // Which part of the system the report is about. Every report is filed on
+    // Decaid's own repository whatever the answer, so this is what lets triage
+    // move a skin or plugin bug without guessing from the prose.
+    const areaCards = FEEDBACK_AREAS.map(card('data-feedback-area', 'selectFeedbackArea', FEEDBACK_DEFAULT_AREA)).join('');
 
     return `
         <div class="content-stretch flex flex-col gap-[24px] items-start relative w-full">
@@ -1990,28 +2061,44 @@ export function renderFeedbackSettings() {
 
             <!-- Category -->
             <div class="flex flex-col gap-[10px] w-full">
-                <p class="font-bold text-[#385a92] text-[22px]" data-i18n-key="Category">Category</p>
+                <p class="font-bold text-[var(--mimoja-blue-v2)] text-[22px]" data-i18n-key="Category">Category</p>
                 <input type="hidden" id="feedback-category" value="bug">
                 <div class="grid grid-cols-3 gap-[10px] w-full">
                     ${categoryCards}
                 </div>
             </div>
 
+            <!-- Area -->
+            <div class="flex flex-col gap-[10px] w-full">
+                <p class="font-bold text-[var(--mimoja-blue-v2)] text-[22px]" data-i18n-key="What is it about?">What is it about?</p>
+                <input type="hidden" id="feedback-area" value="${FEEDBACK_DEFAULT_AREA}">
+                <div class="grid grid-cols-3 gap-[10px] w-full">
+                    ${areaCards}
+                </div>
+                <div id="feedback-plugin-row" class="hidden flex-col gap-[8px] w-full">
+                    <p class="text-[var(--text-primary)] text-[19px]">Which plugin? Naming it is what lets the report reach whoever maintains it.</p>
+                    <select id="feedback-plugin"
+                            class="bg-[var(--box-color)] border-2 border-[var(--mimoja-blue-v2)] h-[54px] rounded-[54px] w-full text-[var(--text-primary)] text-[22px] px-[24px]">
+                        <option value="">Loading…</option>
+                    </select>
+                </div>
+            </div>
+
             <!-- Title -->
             <div class="flex flex-col gap-[8px] w-full">
-                <p class="font-bold text-[#385a92] text-[22px]" data-i18n-key="Title">Title</p>
+                <p class="font-bold text-[var(--mimoja-blue-v2)] text-[22px]" data-i18n-key="Title">Title</p>
                 <input type="text" id="feedback-title"
-                       class="bg-[var(--box-color)] border-2 border-[#385a92] h-[54px] rounded-[54px] w-full text-[var(--text-primary)] text-[22px] px-[24px]"
+                       class="bg-[var(--box-color)] border-2 border-[var(--mimoja-blue-v2)] h-[54px] rounded-[54px] w-full text-[var(--text-primary)] text-[22px] px-[24px]"
                        placeholder="Short summary of your feedback…">
             </div>
 
             <!-- Description -->
             <div class="flex flex-col gap-[8px] w-full">
-                <p class="font-bold text-[#385a92] text-[22px]" data-i18n-key="Description">Description</p>
+                <p class="font-bold text-[var(--mimoja-blue-v2)] text-[22px]" data-i18n-key="Description">Description</p>
                 <textarea id="feedback-description" class="hidden"></textarea>
                 <div id="feedback-description-preview"
                      onclick="window.openFeedbackDescriptionEditor()"
-                     class="cursor-pointer bg-[var(--box-color)] border-2 border-[#385a92] rounded-[14px] w-full min-h-[110px] text-[21px] p-[18px] whitespace-pre-wrap select-none text-[var(--low-contrast-white)]" data-i18n-key="Tap to write description…">
+                     class="cursor-pointer bg-[var(--box-color)] border-2 border-[var(--mimoja-blue-v2)] rounded-[14px] w-full min-h-[110px] text-[21px] p-[18px] whitespace-pre-wrap select-none text-[var(--low-contrast-white)]" data-i18n-key="Tap to write description…">
                     Tap to write description…
                 </div>
             </div>
@@ -2019,21 +2106,21 @@ export function renderFeedbackSettings() {
             <!-- System info toggle -->
             <div class="flex items-center justify-between w-full">
                 <div class="flex flex-col gap-[4px]">
-                    <p class="font-bold text-[#385a92] text-[22px]">Attach Diagnostics</p>
+                    <p class="font-bold text-[var(--mimoja-blue-v2)] text-[22px]">Attach Diagnostics</p>
                     <p class="text-[var(--text-primary)] text-[19px]">Includes application logs in a secret (unlisted) Gist. The Gist URL is added to the public GitHub issue, so anyone who can view the issue can access the logs. Also includes Decaid app version, platform, and OS version</p>
                 </div>
                 <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
                     <input type="checkbox" id="feedback-attach-sysinfo" checked class="sr-only peer">
-                    <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                    <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                     <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
                 </label>
             </div>
 
             <!-- Submit -->
-            <div class="flex flex-col gap-[12px] w-full">
+            <div class="flex flex-row items-center gap-[12px] w-full">
                 <button id="feedback-submit-btn"
                         onclick="window.submitFeedback()"
-                        class="bg-[#385a92] h-[54px] px-[40px] rounded-[54px] text-white text-[22px] font-bold self-start" data-i18n-key="Submit">
+                        class="bg-[var(--button-primary-bg)] h-[54px] px-[40px] rounded-[54px] text-white text-[22px] font-bold" data-i18n-key="Submit">
                     Submit
                 </button>
                 <div id="feedback-status" class="text-[22px] leading-[1.4]"></div>
@@ -2048,6 +2135,12 @@ export function renderScreenSaverSettings() {
     const hasCustom = screensaverImagesCache.length > 0;
     const cycleSeconds = parseInt(localStorage.getItem('screensaverCycleSeconds'), 10) || 10;
     const blackSaver = isBlackScreenSaver();
+    const customBrightness = isCustomSaverBrightness();
+    const saverBrightness = customBrightness ? getSaverBrightness() : SAVER_BRIGHTNESS_DEFAULT;
+    const showClock = localStorage.getItem('screensaverShowClock') !== 'false';
+    const clockFormat = resolveScreensaverClockFormat(localStorage.getItem('screensaverClockFormat'));
+    const clockPosition = resolveScreensaverClockPosition(localStorage.getItem('screensaverClockPosition'));
+    const dateFormat = resolveScreensaverDateFormat(localStorage.getItem('screensaverDateFormat'));
     // Hide the control where REA says the platform cannot set brightness --
     // DisplayState.platformSupported.brightness. Assume supported until the first
     // snapshot lands, so the row does not flicker in on load.
@@ -2060,16 +2153,16 @@ export function renderScreenSaverSettings() {
     `).join('');
 
     const imageButtons = hasCustom ? `
-        <button class="bg-[#385a92] h-[62px] px-[36px] rounded-[72px] text-white text-[22px] font-bold"
+        <button class="bg-[var(--button-primary-bg)] h-[62px] px-[36px] rounded-[72px] text-white text-[22px] font-bold"
                 onclick="document.getElementById('screensaver-file-input').click()">
             Add Images
         </button>
-        <button class="bg-[var(--box-color)] border-2 border-[#385a92] h-[62px] px-[36px] rounded-[72px] text-[#385a92] text-[22px] font-bold"
+        <button class="bg-[var(--box-color)] border-2 border-[var(--mimoja-blue-v2)] h-[62px] px-[36px] rounded-[72px] text-[var(--mimoja-blue-v2)] text-[22px] font-bold"
                 onclick="window.clearScreensaverImages()">
             Clear All
         </button>
     ` : `
-        <button class="bg-[#385a92] h-[62px] px-[36px] rounded-[72px] text-white text-[22px] font-bold"
+        <button class="bg-[var(--button-primary-bg)] h-[62px] px-[36px] rounded-[72px] text-white text-[22px] font-bold"
                 onclick="document.getElementById('screensaver-file-input').click()">
             Choose Images
         </button>
@@ -2086,87 +2179,124 @@ export function renderScreenSaverSettings() {
         </p>
     `;
 
+    // Rows share one rhythm: label left, control flush right at 260px, so every
+    // control on the panel lines up on the same edge whichever card it is in.
+    const switchControl = (checked, handler, id = '') => `
+            <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
+                <input type="checkbox" class="sr-only peer" ${id ? `id="${id}"` : ''} ${checked ? 'checked' : ''}
+                       onchange="${handler}(this.checked)">
+                <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
+                <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
+            </label>`;
+    const toggle = (label, key, checked, handler, id = '') => `
+        <div class="flex items-center justify-between gap-[20px]">
+            <p class="font-bold text-[var(--text-primary)] text-[24px] leading-[1.2]" data-i18n-key="${key}">${label}</p>${switchControl(checked, handler, id)}
+        </div>`;
+    const select = (id, label, options, current, handler) => `
+        <div class="flex items-center justify-between gap-[20px]">
+            <label for="${id}" class="font-bold text-[var(--text-primary)] text-[24px] leading-[1.2]" data-i18n-key="${label}">${label}</label>
+            <select id="${id}"
+                    class="select select-bordered w-[260px] text-[20px] bg-[var(--presence-input-bg)] text-[var(--presence-input-text)] border-[var(--presence-input-border)]"
+                    onchange="${handler}(this.value)">
+                ${options.map(o => `<option value="${o.value}" ${current === o.value ? 'selected' : ''} data-i18n-key="${o.label}">${o.label}</option>`).join('')}
+            </select>
+        </div>`;
+    // 62px and 260px overall, matching the selects rather than standing above them
+    // as a banner -- it is one control among the others, not a second page title.
+    const modeSegment = (black, label) => `
+        <button type="button" class="flex-1 h-[62px] rounded-[12px] font-bold text-[24px] flex items-center justify-center cursor-pointer transition-colors duration-200 ${blackSaver === black ? 'bg-[var(--button-primary-bg)] text-white' : 'bg-[var(--box-color)] border-2 border-[var(--profile-button-outline-color)] text-[var(--text-primary)]'}"
+                aria-pressed="${blackSaver === black}"
+                onclick="window.setBlackScreenSaver(${black})" data-i18n-key="${label}">${getTranslation(label)}</button>`;
+
+    // One card per question the panel answers. Rows are divided rather than boxed
+    // again, so the card is the only container and nesting stays one level deep.
+    const card = (titleKey, rows) => `
+        <div class="rounded-[10px] border border-[var(--border-primary)] p-6 bg-[var(--box-color)] flex flex-col w-full">
+            <p class="font-bold text-[var(--mimoja-blue-v2)] text-[26px] leading-[1.2]" style="padding-bottom:8px" data-i18n-key="${titleKey}">${getTranslation(titleKey)}</p>
+            ${rows.filter(Boolean).map((row, i) => `
+            <div class="py-[16px] ${i ? 'border-t border-[var(--border-primary)]' : ''}">${row}</div>`).join('')}
+        </div>`;
+
+    const styleRow = `
+        <div class="flex items-center justify-between gap-[20px]">
+            <p id="screensaver-style-label" class="font-bold text-[var(--text-primary)] text-[24px] leading-[1.2]" data-i18n-key="Screen saver style">Screen saver style</p>
+            <div class="flex gap-[12px] w-[220px]" role="group" aria-labelledby="screensaver-style-label">
+                ${modeSegment(false, 'Images')}
+                ${modeSegment(true, 'Black')}
+            </div>
+        </div>`;
+
+    // The switch is "set it myself"; the slider below is the setting. One row each,
+    // so the label is not competing with a second label for the same control.
+    const brightnessRows = !blackSaver && brightnessSupported ? [`
+        <div class="flex items-center justify-between gap-[20px]">
+            <p id="saver-brightness-label" class="font-bold text-[var(--text-primary)] text-[24px] leading-[1.2]" data-i18n-key="Screen saver brightness">Screen saver brightness</p>
+            <div class="flex items-center gap-[20px]">
+                <span class="font-bold text-[var(--text-secondary)] text-[22px]" data-i18n-key="Custom">Custom</span>${switchControl(customBrightness, 'window.setCustomSaverBrightness', 'saver-brightness-custom')}
+            </div>
+        </div>`, `
+        <div class="flex items-center gap-[30px] w-full">
+            <input type="range" id="saver-brightness-slider" min="0" max="100" step="1" value="${saverBrightness}"
+                   class="brightness-slider flex-grow" ${customBrightness ? '' : 'disabled'}
+                   aria-labelledby="saver-brightness-label"
+                   oninput="window.setSaverBrightnessLevel(this.value)">
+            <span id="saver-brightness-value" class="text-[var(--text-primary)] text-[24px] text-right" style="width:62px">${saverBrightness}%</span>
+        </div>`] : [];
+
+    const saverCard = card('Screen saver', [
+        styleRow,
+        blackSaver ? '' : toggle('Show screen saver when the machine sleeps', 'Show screen saver when the machine sleeps', enabled, 'window.setScreensaverEnabled'),
+        ...brightnessRows,
+    ]);
+
+    const clockCard = card('Clock', [
+        toggle('Show date and time', 'Show date and time', showClock, 'window.setScreensaverShowClock', 'screensaver-show-clock'),
+        showClock ? select('screensaver-clock-format', 'Clock format', SCREENSAVER_CLOCK_FORMATS, clockFormat, 'window.setScreensaverClockFormat') : '',
+        showClock ? select('screensaver-date-format', 'Date format', SCREENSAVER_DATE_FORMATS, dateFormat, 'window.setScreensaverDateFormat') : '',
+        showClock ? select('screensaver-clock-position', 'Clock position', SCREENSAVER_CLOCK_POSITIONS, clockPosition, 'window.setScreensaverClockPosition') : '',
+    ]);
+
+    // The image deck only exists under the image saver, so it is a whole card
+    // that leaves rather than rows that grey out.
+    const imagesCard = blackSaver ? '' : card('Images', [
+        imageInfo,
+        `<div class="flex items-center justify-between gap-[16px]">
+            <div class="flex items-baseline gap-[14px] font-bold ${screensaverImagesCache.length > 1 ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] opacity-50'} text-[24px]">
+                <p class="leading-[1.2]" data-i18n-key="Change image every:">Change image every:</p>
+            </div>
+            <input type="number"
+                   id="screensaver-cycle-seconds"
+                   min="2"
+                   max="600"
+                   step="1"
+                   value="${cycleSeconds}"
+                   ${screensaverImagesCache.length > 1 ? '' : 'disabled'}
+                   class="w-[140px] h-[62px] px-[20px] rounded-[12px] border-2 border-[var(--mimoja-blue-v2)] bg-[var(--box-color)] text-[var(--text-primary)] text-[24px] text-center disabled:opacity-40 disabled:cursor-not-allowed"
+                   onchange="window.handleScreensaverCycleChange(this.value)">
+        </div>`,
+        `<div class="flex items-center justify-end gap-[16px]">${imageButtons}</div>`,
+    ]);
+
     return `
-        <div class="content-stretch flex flex-col gap-[60px] items-start relative w-full">
+        <div class="content-stretch flex flex-col gap-[40px] items-start relative w-full">
             <div class="flex flex-col font-['Inter:Semi_Bold',sans-serif] font-semibold justify-center leading-[0] min-w-full not-italic relative text-[var(--text-primary)] text-[36px] text-center w-[min-content]">
                 <p class="leading-[1.2]" data-i18n-key="Screen Saver">Screen Saver</p>
             </div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
 
-            <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
-                <div class="content-stretch flex items-center justify-between relative w-full">
-                    <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--text-primary)] text-[30px]">
-                        <p class="leading-[1.2]" data-i18n-key="Show screen saver when the machine sleeps">Show screen saver when the machine sleeps</p>
-                    </div>
-                    <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
-                        <input type="checkbox" class="sr-only peer"
-                               ${enabled && !blackSaver ? 'checked' : ''}
-                               onchange="window.setScreensaverEnabled(this.checked)">
-                        <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
-                        <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
-                    </label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:40px;row-gap:24px;align-items:start;width:100%;">
+                <div class="flex flex-col gap-[24px] w-full">
+                    ${saverCard}
+                    ${imagesCard}
+                </div>
+                <div class="flex flex-col gap-[24px] w-full">
+                    ${clockCard}
                 </div>
             </div>
 
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
-
-            <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
-                <div class="content-stretch flex items-center justify-between relative w-full">
-                    <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
-                        <p class="leading-[1.2]">Images</p>
-                    </div>
-                    <div class="flex items-center gap-[16px]">
-                        ${imageButtons}
-                    </div>
-                </div>
-                ${imageInfo}
-            </div>
-
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
-
-            <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
-                <div class="content-stretch flex items-center justify-between relative w-full">
-                    <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative ${screensaverImagesCache.length > 1 ? 'text-[#385a92]' : 'text-[var(--text-secondary)] opacity-50'} text-[30px]">
-                        <p class="leading-[1.2]" data-i18n-key="Change image every:">Change image every:</p>
-                        <span class="text-[20px] font-normal opacity-60">(2 – 600s)</span>
-                    </div>
-                    <input type="number"
-                           id="screensaver-cycle-seconds"
-                           min="2"
-                           max="600"
-                           step="1"
-                           value="${cycleSeconds}"
-                           ${screensaverImagesCache.length > 1 ? '' : 'disabled'}
-                           class="w-[140px] h-[62px] px-[20px] rounded-[12px] border-2 border-[#385a92] bg-[var(--box-color)] text-[var(--text-primary)] text-[24px] text-center disabled:opacity-40 disabled:cursor-not-allowed"
-                           onchange="window.handleScreensaverCycleChange(this.value)">
-                </div>
-                ${screensaverImagesCache.length > 1 ? '' : `
-                <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] w-full">
-                    Add more than one image to enable cycling.
-                </p>`}
-            </div>
-
-            ${brightnessSupported ? `
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
-
-            <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
-                <div class="content-stretch flex items-center justify-between relative w-full">
-                    <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--text-primary)] text-[30px]">
-                        <p class="leading-[1.2]" data-i18n-key="Black screen saver">Black screen saver</p>
-                    </div>
-                    <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
-                        <input type="checkbox" class="sr-only peer"
-                               id="black-screen-saver"
-                               ${blackSaver ? 'checked' : ''}
-                               onchange="window.setBlackScreenSaver(this.checked)">
-                        <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
-                        <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
-                    </label>
-                </div>
-            </div>
-            ` : ''}
-
+            ${blackSaver ? '' : `
             <input type="file" id="screensaver-file-input" class="hidden" multiple accept="image/*"
-                   onchange="window.addScreensaverFiles(this.files)">
+                   onchange="window.addScreensaverFiles(this.files)">`}
         </div>
     `;
 }
@@ -2195,18 +2325,142 @@ export function renderBrightnessSettings() {
                 <div class="flex items-center gap-[30px] w-full">
                     <input type="range" id="brightness-slider" min="0" max="100" value="${brightnessVal}" class="brightness-slider flex-grow" oninput="handleBrightnessChange(this.value)">
                     <input type="number" id="brightness-number" min="0" max="100" step="1" value="${brightnessVal}"
-                           class="w-[140px] h-[62px] px-[20px] rounded-[12px] border-2 border-[#385a92] bg-[var(--box-color)] text-[var(--text-primary)] text-[24px] text-center"
+                           class="w-[140px] h-[62px] px-[20px] rounded-[12px] border-2 border-[var(--mimoja-blue-v2)] bg-[var(--box-color)] text-[var(--text-primary)] text-[24px] text-center"
                            onchange="handleBrightnessChange(this.value)">
                 </div>
+                <p id="brightness-requested-readout" class="${BRIGHTNESS_NOTICE_CLASS}" ${requestedBrightnessReadout({ requested: ds?.requestedBrightness, applied: ds?.brightness }) ? '' : 'hidden'}>${escapeHtml(requestedBrightnessReadout({ requested: ds?.requestedBrightness, applied: ds?.brightness }, getTranslation(REQUESTED_APPLIED_TEMPLATE)) || '')}</p>
                 <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[32px] w-full" data-i18n-key="Adjust screen brightness level">
                     Adjust screen brightness level
                 </p>
+                <div id="brightness-notices" class="flex flex-col gap-[16px] w-full">
+                    ${brightnessNotices({ brightness: brightnessVal, blackScreenSaver: isBlackScreenSaver(), lowBatteryActive: ds?.lowBatteryBrightnessActive === true })
+                        .map(notice => `<p class="${BRIGHTNESS_NOTICE_CLASS}" data-i18n-key="${notice}">${notice}</p>`)
+                        .join('')}
+                </div>
             </div>
         </div>
     `;
 }
 
+const BRIGHTNESS_NOTICE_CLASS = "font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] opacity-75 w-full";
+// Set when the last brightness write was queued because the display socket was down.
+let brightnessWriteQueued = false;
+
+// Re-render the notices under the slider. The panel is long-lived: display frames
+// and slider drags change which notices apply, so it cannot be a render-time snapshot.
+function refreshBrightnessNotices(brightness, frame = displayState()) {
+    const container = document.getElementById('brightness-notices');
+    if (!container) return;
+    const notices = brightnessNotices({
+        brightness,
+        blackScreenSaver: isBlackScreenSaver(),
+        lowBatteryActive: displayState()?.lowBatteryBrightnessActive === true
+    });
+    if (brightnessWriteQueued) notices.push(QUEUED_NOTICE);
+    const nodes = [];
+    for (const notice of notices) {
+        const p = document.createElement('p');
+        p.className = BRIGHTNESS_NOTICE_CLASS;
+        p.setAttribute('data-i18n-key', notice);
+        p.textContent = getTranslation(notice);
+        nodes.push(p);
+        if (notice === LOW_BATTERY_NOTICE) {
+            // Separate element so the notice text stays plain and translatable.
+            // Clicks are handled by the delegated listener bound in initializeSettings.
+            const jump = document.createElement('button');
+            jump.type = 'button';
+            jump.dataset.settingsJump = LOW_BATTERY_SETTING_CATEGORY;
+            jump.className = "self-start h-[62px] px-[32px] rounded-[12px] border-2 border-[var(--mimoja-blue-v2)] text-[var(--text-primary)] text-[24px]";
+            jump.setAttribute('data-i18n-key', GO_TO_SETTING_LABEL);
+            jump.textContent = getTranslation(GO_TO_SETTING_LABEL);
+            nodes.push(jump);
+        }
+    }
+    container.replaceChildren(...nodes);
+
+    const readout = document.getElementById('brightness-requested-readout');
+    if (readout) {
+        const text = requestedBrightnessReadout(
+            { requested: frame?.requestedBrightness, applied: frame?.brightness },
+            getTranslation(REQUESTED_APPLIED_TEMPLATE)
+        );
+        readout.textContent = text || '';
+        readout.hidden = !text;
+    }
+}
+
+// Jump from a settings notice to the control it points at, through the same
+// delegated nav clicks a user would make (main category button, then subcategory).
+function jumpToSettingCategory(settingsCategory) {
+    // Plugin rows are appended to the Extensions subnav dynamically, so the
+    // static tree never lists them.
+    const mainCategory = pluginIdFromCategory(settingsCategory) !== null
+        ? 'extensions'
+        : Object.keys(settingsTree).find(key =>
+            settingsTree[key].subcategories.some(sub => sub.settingsCategory === settingsCategory));
+    if (!mainCategory) return;
+    const mainButton = document.getElementById(`${mainCategory}-btn`);
+    if (!mainButton) return;
+    mainButton.click();
+    clickSubcategoryWhenReady(settingsCategory);
+}
+
+// A static category's rows are in the DOM the moment its main button is
+// clicked. The Extensions rows for plugins are not: they come from the async
+// plugin list, so querying once lands on whatever row Extensions defaults to
+// (Shot Uploader) and the jump looks like it went to the wrong place. Wait for
+// the row instead, with a deadline so a category that never appears gives up.
+function clickSubcategoryWhenReady(settingsCategory, deadline = Date.now() + 2000) {
+    const row = document.querySelector(`#sub-categories-panel .settings-subnav-btn[data-category="${CSS.escape(settingsCategory)}"]`);
+    if (row) { row.click(); return; }
+    if (Date.now() >= deadline) {
+        logger.warn(`Settings jump: no subcategory row for ${settingsCategory}`);
+        return;
+    }
+    setTimeout(() => clickSubcategoryWhenReady(settingsCategory, deadline), 50);
+}
+
+let settingsJumpBinding = null;
+function unbindSettingsJump() {
+    settingsJumpBinding?.target.removeEventListener('click', settingsJumpBinding.handler);
+    settingsJumpBinding = null;
+}
+function bindSettingsJump() {
+    unbindSettingsJump();
+    const target = document.getElementById('settings-content-area');
+    if (!target) return;
+    const handler = event => {
+        const button = event.target.closest?.('[data-settings-jump]');
+        if (button) jumpToSettingCategory(button.dataset.settingsJump);
+    };
+    target.addEventListener('click', handler);
+    settingsJumpBinding = { target, handler };
+}
+
 // Render Wake Lock settings
+// One toggle, one string: the click the skin plays on a tap, off by default.
+// Deliberately no heading or description beyond the label -- the label is the
+// whole setting, and every extra sentence is another translation to carry.
+export function renderSoundSettings() {
+    const enabled = isTouchSoundEnabled();
+    return `
+        <div class="space-y-6 px-[60px] py-[80px]">
+            <div class="bg-[var(--presence-card-bg)] rounded-lg p-6">
+                <div class="flex items-center justify-between">
+                    <label class="text-[24px] font-semibold text-[var(--presence-card-text)]" data-i18n-key="Enable sounds">Enable sounds</label>
+                    <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
+                        <input type="checkbox" id="touch-sound-toggle" class="sr-only peer"
+                               ${enabled ? 'checked' : ''}
+                               onchange="handleTouchSoundToggle(this.checked)">
+                        <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
+                        <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
+                    </label>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 export function renderWakeLockSettings() {
     // Prefer REA's live DisplayState; fall back to last-known localStorage intent
     // only before the first display frame has arrived. wakeLockOverride (not
@@ -2216,9 +2470,7 @@ export function renderWakeLockSettings() {
         ?? isWakeLockEnabled();
     const wakeProfileEnabled = isWakeProfileEnabled();
     const wakeProfileId = getWakeProfileId();
-    const profileOptions = Object.values(availableProfiles)
-        .map(record => `<option value="${escapeHtml(record.id)}" ${record.id === wakeProfileId ? 'selected' : ''}>${escapeHtml(translateProfileTitle(record.profile?.title) || record.id)}</option>`)
-        .join('');
+    const profileOptions = renderWakeProfileOptions(wakeProfileId);
 
     // Settings can be opened before the main page has ever mounted, in which
     // case profileManager's cache is still empty (it's only populated by
@@ -2248,7 +2500,7 @@ export function renderWakeLockSettings() {
                         <input type="checkbox" id="wake-lock-toggle" class="sr-only peer"
                                ${wakeLockEnabled ? 'checked' : ''}
                                onchange="handleWakeLockToggle(this.checked)">
-                        <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                        <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                         <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
                     </label>
                 </div>
@@ -2266,7 +2518,7 @@ export function renderWakeLockSettings() {
                         <input type="checkbox" id="wake-profile-toggle" class="sr-only peer"
                                ${wakeProfileEnabled ? 'checked' : ''}
                                onchange="handleWakeProfileToggle(this.checked)">
-                        <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                        <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                         <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
                     </label>
                 </div>
@@ -2296,11 +2548,19 @@ async function loadWakeProfileOptionsAsync() {
     }
     const select = document.getElementById('wake-profile-select');
     if (!select) return; // navigated away before the fetch resolved
-    const wakeProfileId = getWakeProfileId();
-    const options = Object.values(availableProfiles)
+    select.innerHTML = `<option value="" data-i18n-key="Select a profile">Select a profile</option>${renderWakeProfileOptions(getWakeProfileId())}`;
+    // These options land after the settings page's one-shot translation pass,
+    // so the placeholder's data-i18n-key stays English without this.
+    translatePage();
+}
+
+// Shared by the synchronous render and the late fetch above. wakeProfileChoices
+// drops the records an edit retired, which otherwise piled up in the list as
+// duplicate titles, and keeps the chosen one listed even when it is one of them.
+function renderWakeProfileOptions(wakeProfileId) {
+    return wakeProfileChoices(availableProfiles, wakeProfileId, record => translateProfileTitle(record?.profile?.title))
         .map(record => `<option value="${escapeHtml(record.id)}" ${record.id === wakeProfileId ? 'selected' : ''}>${escapeHtml(translateProfileTitle(record.profile?.title) || record.id)}</option>`)
         .join('');
-    select.innerHTML = `<option value="" data-i18n-key="Select a profile">Select a profile</option>${options}`;
 }
 
 // Render Presence Detection settings (async — populates container after fetch)
@@ -2360,7 +2620,7 @@ async function loadPresenceSettingsAsync() {
                         <input type="checkbox" class="sr-only peer"
                                ${schedule.enabled ? 'checked' : ''}
                                onchange="handleScheduleToggle('${schedule.id}', this.checked)">
-                        <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                        <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                         <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
                     </label>
                     <button class="btn btn-sm btn-error" onclick="handleDeleteSchedule('${schedule.id}')" data-i18n-key="Delete">
@@ -2391,7 +2651,7 @@ async function loadPresenceSettingsAsync() {
                             <input type="checkbox" id="presence-enabled-toggle" class="sr-only peer"
                                    ${settings.userPresenceEnabled ? 'checked' : ''}
                                    onchange="handlePresenceToggle(this.checked)">
-                            <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                            <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                             <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
                         </label>
                     </div>
@@ -2507,10 +2767,10 @@ export function renderAppVersionSettings() {
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="App Version">App Version</p>
                         </div>
-                        <div class="bg-[#385a92] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold flex items-center justify-center">
+                        <div class="bg-[var(--button-primary-bg)] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold flex items-center justify-center">
                             1.0.0
                         </div>
                     </div>
@@ -2534,10 +2794,10 @@ export function renderUnitsSettings() {
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Measurement Units">Measurement Units</p>
                         </div>
-                        <select class="bg-[#385a92] border-2 border-[#385a92] border-solid h-[62.88px] rounded-[2617.374px] w-[200px] text-white text-[24px] p-2">
+                        <select class="bg-[var(--button-primary-bg)] border-2 border-[var(--mimoja-blue-v2)] border-solid h-[62.88px] rounded-[2617.374px] w-[200px] text-white text-[24px] p-2">
                             <option data-i18n-key="Metric">Metric</option>
                             <option data-i18n-key="Imperial">Imperial</option>
                         </select>
@@ -2586,10 +2846,10 @@ export function renderFontSizeSettings() {
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Display Size">Display Size</p>
                         </div>
-                        <select id="text-size-select" class="bg-[#385a92] border-2 border-[#385a92] border-solid h-[62.88px] rounded-[2617.374px] w-[220px] text-white text-[24px] p-2">
+                        <select id="text-size-select" class="bg-[var(--button-primary-bg)] border-2 border-[var(--mimoja-blue-v2)] border-solid h-[62.88px] rounded-[2617.374px] w-[220px] text-white text-[24px] p-2">
                             ${options}
                         </select>
                     </div>
@@ -2601,16 +2861,16 @@ export function renderFontSizeSettings() {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Chart Line Width">Chart Line Width</p>
                         </div>
-                        <select id="chart-line-width-select" class="bg-[#385a92] border-2 border-[#385a92] border-solid h-[62.88px] rounded-[2617.374px] w-[220px] text-white text-[24px] p-2">
+                        <select id="chart-line-width-select" class="bg-[var(--button-primary-bg)] border-2 border-[var(--mimoja-blue-v2)] border-solid h-[62.88px] rounded-[2617.374px] w-[220px] text-white text-[24px] p-2">
                             ${lineWidthOptions}
                         </select>
                     </div>
@@ -2658,10 +2918,10 @@ export function renderTempUnitSettings() {
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Temperature">Temperature</p>
                         </div>
-                        <select id="temp-unit-select" class="bg-[#385a92] border-2 border-[#385a92] border-solid h-[62.88px] rounded-[2617.374px] w-[200px] text-white text-[24px] p-2">
+                        <select id="temp-unit-select" class="bg-[var(--button-primary-bg)] border-2 border-[var(--mimoja-blue-v2)] border-solid h-[62.88px] rounded-[2617.374px] w-[200px] text-white text-[24px] p-2">
                             <option value="C"${current === 'C' ? ' selected' : ''}>Celsius (°C)</option>
                             <option value="F"${current === 'F' ? ' selected' : ''}>Fahrenheit (°F)</option>
                         </select>
@@ -2690,10 +2950,10 @@ export function renderResolutionSettings() {
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Display Resolution">Display Resolution</p>
                         </div>
-                        <select class="bg-[#385a92] border-2 border-[#385a92] border-solid h-[62.88px] rounded-[2617.374px] w-[200px] text-white text-[24px] p-2">
+                        <select class="bg-[var(--button-primary-bg)] border-2 border-[var(--mimoja-blue-v2)] border-solid h-[62.88px] rounded-[2617.374px] w-[200px] text-white text-[24px] p-2">
                             <option>1920x1200</option>
                             <option>1280x800</option>
                             <option>1024x768</option>
@@ -2707,173 +2967,6 @@ export function renderResolutionSettings() {
         </div>
     `;
 }
-
-export function renderMiscellaneousSettings() {
-    // The slider reflects reality: `brightness` is the level actually applied,
-    // which REA caps at 20 while lowBatteryBrightnessActive. requestedBrightness
-    // (what was asked for) is only the fallback. This must match what the
-    // ws/v1/display handler writes on later frames, or the controls jump from one
-    // to the other the moment a frame lands. Then api.js's cached frame, then 100
-    // -- the API's "OS-managed" value -- never an invented 75, which used to show
-    // whenever displayStateCache was null and got written back on first touch.
-    const ds = displayState();
-    const brightnessVal = ds?.brightness ?? ds?.requestedBrightness ?? 100;
-    return `
-        <div class="content-stretch flex flex-col gap-[60px] items-start relative w-full">
-            <div class="flex flex-col font-['Inter:Semi_Bold',sans-serif] font-semibold justify-center leading-[0] min-w-full not-italic relative text-[var(--text-primary)] text-[36px] text-center w-[min-content]">
-                <p class="leading-[1.2]" data-i18n-key="Miscellaneous Settings">Miscellaneous Settings</p>
-            </div>
-
-            <div class="content-stretch flex flex-col items-start relative w-full">
-                <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
-                    <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
-                            <p class="leading-[1.2]" data-i18n-key="Screen Saver">Screen Saver</p>
-                        </div>
-                        <select class="bg-[#385a92] border-2 border-[#385a92] border-solid h-[62.88px] rounded-[2617.374px] w-[200px] text-white text-[24px] p-2">
-                            <option data-i18n-key="Enabled">Enabled</option>
-                            <option data-i18n-key="Disabled">Disabled</option>
-                        </select>
-                    </div>
-                    <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] w-full">
-                        Enable or disable screen saver functionality
-                    </p>
-                </div>
-            </div>
-
-            <!-- Divider -->
-            <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
-            </div>
-
-            <div class="content-stretch flex flex-col items-start relative w-full">
-                <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
-                    <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
-                            <p class="leading-[1.2]" data-i18n-key="Brightness">Brightness</p>
-                        </div>
-                        <input type="range" id="brightness-slider" min="0" max="100" value="${brightnessVal}" class="brightness-slider w-[200px]" onchange="handleBrightnessChange(this.value)">
-                    </div>
-                    <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] w-full" data-i18n-key="Adjust screen brightness level">
-                        Adjust screen brightness level
-                    </p>
-                </div>
-            </div>
-
-            <!-- Divider -->
-            <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
-            </div>
-
-            <div class="content-stretch flex flex-col items-start relative w-full">
-                <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
-                    <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
-                            <p class="leading-[1.2]" data-i18n-key="App Version">App Version</p>
-                        </div>
-                        <div class="bg-[#385a92] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold flex items-center justify-center">
-                            1.0.0
-                        </div>
-                    </div>
-                    <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] w-full" data-i18n-key="Current application version">
-                        Current application version
-                    </p>
-                </div>
-            </div>
-
-            <!-- Divider -->
-            <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
-            </div>
-
-            <div class="content-stretch flex flex-col items-start relative w-full">
-                <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
-                    <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
-                            <p class="leading-[1.2]" data-i18n-key="Units Settings">Units Settings</p>
-                        </div>
-                        <select class="bg-[#385a92] border-2 border-[#385a92] border-solid h-[62.88px] rounded-[2617.374px] w-[200px] text-white text-[24px] p-2">
-                            <option data-i18n-key="Metric">Metric</option>
-                            <option data-i18n-key="Imperial">Imperial</option>
-                        </select>
-                    </div>
-                    <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] w-full" data-i18n-key="Select measurement units for the application">
-                        Select measurement units for the application
-                    </p>
-                </div>
-            </div>
-
-            <!-- Divider -->
-            <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
-            </div>
-
-            <div class="content-stretch flex flex-col items-start relative w-full">
-                <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
-                    <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
-                            <p class="leading-[1.2]" data-i18n-key="Display Size">Display Size</p>
-                        </div>
-                        <select class="bg-[#385a92] border-2 border-[#385a92] border-solid h-[62.88px] rounded-[2617.374px] w-[200px] text-white text-[24px] p-2">
-                            <option data-i18n-key="Small">Small</option>
-                            <option data-i18n-key="Medium">Medium</option>
-                            <option data-i18n-key="Large">Large</option>
-                        </select>
-                    </div>
-                    <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] w-full" data-i18n-key="Adjust the display size for better readability">
-                        Adjust the display size for better readability
-                    </p>
-                </div>
-            </div>
-
-            <!-- Divider -->
-            <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
-            </div>
-
-            <div class="content-stretch flex flex-col items-start relative w-full">
-                <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
-                    <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
-                            <p class="leading-[1.2]" data-i18n-key="Resolution">Resolution</p>
-                        </div>
-                        <select class="bg-[#385a92] border-2 border-[#385a92] border-solid h-[62.88px] rounded-[2617.374px] w-[200px] text-white text-[24px] p-2">
-                            <option>1920x1200</option>
-                            <option>1280x800</option>
-                            <option>1024x768</option>
-                        </select>
-                    </div>
-                    <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] w-full" data-i18n-key="Set the display resolution">
-                        Set the display resolution
-                    </p>
-                </div>
-            </div>
-
-            <!-- Divider -->
-            <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
-            </div>
-
-            <div class="content-stretch flex flex-col items-start relative w-full">
-                <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
-                    <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
-                            <p class="leading-[1.2]" data-i18n-key="Smart Charging">Smart Charging</p>
-                        </div>
-                        <select class="bg-[#385a92] border-2 border-[#385a92] border-solid h-[62.88px] rounded-[2617.374px] w-[200px] text-white text-[24px] p-2">
-                            <option data-i18n-key="Enabled">Enabled</option>
-                            <option data-i18n-key="Disabled">Disabled</option>
-                        </select>
-                    </div>
-                    <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] w-full" data-i18n-key="Enable smart charging for connected devices">
-                        Enable smart charging for connected devices
-                    </p>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
 
 // Helper: convert minutes-since-midnight to HH:MM string
 function minutesToTimeString(minutes) {
@@ -2910,24 +3003,18 @@ function getMilkProbe() {
     return window.app?.getMilkProbe?.() ?? { present: false, temperature: 0 };
 }
 
-// Last non-temperature stop mode the user chose ('time'|'off') — what the page
-// falls back to while the probe is absent. Probe loss is NOT display-only:
-// ui.js un-arms an active stop on the machine (stopAtTemperature = 0) and
-// lands the stop-mode record on this fallback (onMilkProbeUpdate below mirrors
-// the un-arm into this page's cached/staged workflow), so re-attaching the
-// probe restores the Milk Temp OPTION but not the mode — Milk Temp comes back
-// only when the user re-selects it (or an armed stop survived, e.g. a boot
-// with the probe attached).
-function getSteamStopFallbackMode() {
-    try {
-        return localStorage.getItem('streamline.steamStopModeFallback');
-    } catch (e) { return null; }
-}
+// Probe loss is NOT display-only: ui.js un-arms an active stop on the machine
+// (stopAtTemperature = 0) and records 'time' as the fallback stop mode
+// (onMilkProbeUpdate below mirrors the un-arm into this page's cached/staged
+// workflow), so re-attaching the probe restores the Milk Temp OPTION but not
+// the mode — Milk Temp comes back only when the user re-selects it (or an
+// armed stop survived, e.g. a boot with the probe attached). ui.js still reads
+// the fallback record for the tile's own Time|Flow pair.
 
 // The steam page's effective stop mode: the resolved mode gated on probe
 // presence ('temperature' is not offerable without a probe).
 function getEffectiveSteamStopMode(probePresent) {
-    return applyMilkProbeGate(getSteamStopMode(), probePresent, getSteamStopFallbackMode());
+    return applyMilkProbeGate(getSteamStopMode(), probePresent);
 }
 
 // Live milk-probe feed from app.js (one call per machine snapshot, ~10 Hz).
@@ -2969,8 +3056,8 @@ window.onMilkProbeUpdate = function(present, temperatureC) {
 export function renderSteamSettings() {
     if (!settingsCache.de1 && !settingsCache.workflow) {
         return `
-            <div class="content-stretch flex flex-col gap-[60px] items-start relative w-full">
-                <div class="flex flex-col font-['Inter:Semi_Bold',sans-serif] font-semibold justify-center leading-[0] min-w-full not-italic relative text-[var(--text-primary)] text-[36px] text-center w-[min-content]">
+            <div class="content-stretch flex flex-col gap-[45px] items-start relative w-full">
+                <div class="flex flex-col font-['Inter:Semi_Bold',sans-serif] font-semibold justify-center leading-[0] min-w-full not-italic relative text-[var(--text-primary)] text-[36px] text-center">
                     <p class="leading-[1.2]">${getTranslation('Steam')} ${getTranslation('Settings')}</p>
                 </div>
                 <div class="text-red-500 p-4 text-[24px]" data-i18n-key="Failed to load settings">Failed to load settings</div>
@@ -2979,7 +3066,17 @@ export function renderSteamSettings() {
     }
 
     const steamSettings = settingsCache.workflow?.steamSettings || {};
-    const targetTemp = steamSettings.targetTemperature ?? 150;
+    // 0 is the heater switched off, not a temperature. Showing it would put a
+    // value outside the range this page advertises into the field (the same
+    // class of bug as the out-of-range values reported for hot water), so the
+    // stepper keeps showing the temperature we would switch back ON to and
+    // greys out while the master toggle below is off -- exactly what
+    // renderCalibSteamSettings already does with the same remembered value.
+    const steamHeaterOn = !isSteamOff(steamSettings.targetTemperature ?? 150);
+    const targetTemp = steamHeaterOn
+        ? steamSettings.targetTemperature
+        : (lastEnabledSteamCalibTemp ?? 150);
+    seedRememberedSteamValues();
     const duration = steamSettings.duration ?? 60;
     const flow = steamSettings.flow ?? 0.9;
     const stopTemp = steamSettings.stopAtTemperature ?? 0;
@@ -2991,27 +3088,44 @@ export function renderSteamSettings() {
     const stopMode = getEffectiveSteamStopMode(probe.present); // 'off' | 'time' | 'temperature'
     const milkTarget = stopTemp > 0 ? Math.round(stopTemp) : 60;
 
-    // Steam-stop segmented button (mimics the gatewayMode segmented control).
+    // Steam-stop choice: two compact pills on the label's own line, like every
+    // other control on this page (Steam temperature, Duration, Flow all put a
+    // narrow control to the right of their label, and Steam Purge Mode uses the
+    // same 200px width). The old full-width joined segments were the Figma
+    // "Setting Tabs Multi-Choice" pattern, which fitted three choices; with Off
+    // gone there are two, and a stretched pair read as a banner rather than a
+    // control.
+    //
+    // 72px tall to match the +/- steppers it sits among, not the 96px the
+    // full-width row needed. Separate pills, so no shared seam and no -1px
+    // margin trick.
     // A disabled button (Milk Temp with no probe) renders grayed and inert.
+    const SEG_BASE = `w-[200px] h-[72px] rounded-[10px] font-['Inter:Bold',sans-serif] font-bold text-[24px] flex items-center justify-center text-center transition-colors duration-200`;
+    const SEG_INACTIVE = 'bg-[var(--box-color)] border border-[var(--border-primary)] text-[#b6c3d7]';
     const stopSegBtn = (value, label, disabled = false) => {
         if (disabled) {
-            return `<button class="flex-1 h-[96px] rounded-[10px] font-['Inter:Bold',sans-serif] font-bold text-[28px] flex items-center justify-center cursor-not-allowed transition-colors duration-200 bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7] opacity-40"
-                    aria-pressed="false" aria-disabled="true" disabled data-i18n-key="${label}">${getTranslation(label)}</button>`;
+            // Not `disabled`: a disabled button fires no click, and the reason it
+            // is unavailable now lives in a toast rather than in a line of copy
+            // sitting under the control. aria-disabled still tells assistive tech.
+            return `<button class="${SEG_BASE} cursor-pointer ${SEG_INACTIVE} opacity-40"
+                    aria-pressed="false" aria-disabled="true" onclick="window.explainSteamStopUnavailable()"
+                    data-i18n-key="${label}">${getTranslation(label)}</button>`;
         }
         const active = stopMode === value;
-        return `<button class="flex-1 h-[96px] rounded-[10px] font-['Inter:Bold',sans-serif] font-bold text-[28px] flex items-center justify-center cursor-pointer transition-colors duration-200 ${active ? 'bg-[var(--mimoja-blue)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
+        return `<button class="${SEG_BASE} cursor-pointer ${active ? 'bg-[var(--button-primary-bg)] text-white' : SEG_INACTIVE}"
                     aria-pressed="${active}"
                     onclick="window.setSteamStopMode('${value}')" data-i18n-key="${label}">${getTranslation(label)}</button>`;
     };
+    // No "Off" stop: unlimited steam is gone, and Off on this page means the
+    // heater only. A steam time of 0 switches the heater off instead.
     const stopDescriptions = {
-        off: 'Steam runs until you stop it (subject to the machine safety timeout).',
         time: 'Steam stops automatically after the set duration.',
         temperature: 'Steam stops automatically when the milk reaches the target temperature.'
     };
 
     return `
-        <div class="content-stretch flex flex-col gap-[60px] items-start relative w-full">
-            <div class="flex flex-col font-['Inter:Semi_Bold',sans-serif] font-semibold justify-center leading-[0] min-w-full not-italic relative text-[var(--text-primary)] text-[36px] text-center w-[min-content]">
+        <div class="content-stretch flex flex-col gap-[45px] items-start relative w-full">
+            <div class="flex flex-col font-['Inter:Semi_Bold',sans-serif] font-semibold justify-center leading-[0] min-w-full not-italic relative text-[var(--text-primary)] text-[36px] text-center">
                 <p class="leading-[1.2]">${getTranslation('Steam')} ${getTranslation('Settings')}</p>
             </div>
 
@@ -3019,9 +3133,9 @@ export function renderSteamSettings() {
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--text-primary)] text-[30px]">
+                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--action-label)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Steam temperature">Steam temperature</p>
-                            <span class="text-[20px] font-normal opacity-60 text-[var(--text-primary)]">${tempInputValue(0)}, ${tempInputValue(135)} – ${tempInputValue(165)} ${tempUnitLabel()}</span>
+                            ${rangeHint(tempInputValue(STEAM_ENABLED_MIN_TEMP), tempInputValue(STEAM_ENABLED_MAX_TEMP), tempUnitLabel(), steamHeaterOn ? tempInputValue(targetTemp) : undefined)}
                         </div>
                         <div class="flex gap-[20px] h-[72px] items-center">
                             <button aria-label="Decrease steam temperature" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
@@ -3030,11 +3144,19 @@ export function renderSteamSettings() {
                                     <path d="M10.416 25H39.5827" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                             </button>
+                            <!-- Off is a state of this field, not a number: below the enabled floor the
+                                 slot reads "Off" in place of a temperature and the master toggle follows.
+                                 The input stays in the DOM either way so the numpad keeps its target. -->
                             <div class="flex items-center justify-center" style="width: 130px;">
+                                ${steamHeaterOn ? `
                                 <input type="text" inputmode="numeric" pattern="[0-9]*" id="steamTempInput" class="text-center text-[var(--text-primary)] text-[24px] font-bold bg-transparent border-none w-full"
-                                       value="${tempInputValue(targetTemp)}" step="1" min="${tempInputValue(0)}" max="${tempInputValue(165)}"
-                                       onchange="window.updateSteamSetting('targetTemperature', Math.round(window.tempInputToCelsius(this.value)))">
+                                       value="${tempInputValue(targetTemp)}" step="1"
+                                       onchange="window.setSteamTempFromInput(this.value)">
                                 <span class="ml-1 text-[var(--text-primary)] text-[24px] font-bold" aria-hidden="true">${tempUnitLabel()}</span>
+                                ` : `
+                                <input type="hidden" id="steamTempInput" value="${tempInputValue(targetTemp)}">
+                                <p class="text-center text-[var(--text-primary)] text-[24px] font-bold w-full" data-i18n-key="Off">${getTranslation('Off')}</p>
+                                `}
                             </div>
                             <button aria-label="Increase steam temperature" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
                                     onclick="window.flashPlusMinusButton(this); window.adjustSteamTemp(1);">
@@ -3044,33 +3166,41 @@ export function renderSteamSettings() {
                             </button>
                         </div>
                     </div>
-                    <p class="text-[20px] font-normal opacity-60 text-[var(--text-primary)] leading-[1.2]" data-i18n-key="The lowest setting turns the steam heater off">The lowest setting turns the steam heater off</p>
                 </div>
             </div>
 
+
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
+            <!-- Steam heater master switch -->
+            ${steamHeaterToggleRow(steamHeaterOn)}
+
+
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
             <!-- Eco steam -->
             <div class="content-stretch flex items-center justify-between gap-[24px] relative w-full">
-                <div class="flex flex-col gap-[10px] font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--text-primary)] text-[30px]">
+                <div class="flex flex-col gap-[10px] font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--action-label)] text-[30px]">
                     <p class="leading-[1.2]" data-i18n-key="Eco steam">Eco steam</p>
-                    <p class="text-[20px] font-normal opacity-60 leading-[1.2]" data-i18n-key="After ten idle minutes the steam boiler drops to just above its cutoff. Any touch brings it straight back.">After ten idle minutes the steam boiler drops to just above its cutoff. Any touch brings it straight back.</p>
+                    <p class="text-[20px] font-normal opacity-60 text-[var(--text-primary)] leading-[1.2]" data-i18n-key="After ten idle minutes the steam boiler drops to just above its cutoff. Any touch brings it straight back.">After ten idle minutes the steam boiler drops to just above its cutoff. Any touch brings it straight back.</p>
                 </div>
                 <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
                     <input type="checkbox" id="eco-steam-toggle"
                            class="sr-only peer"
                            ${isEcoSteamEnabled() ? 'checked' : ''}
                            onchange="window.setEcoSteam(this.checked)">
-                    <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                    <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                     <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
                 </label>
             </div>
 
+
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
             <!-- Steam Flow -->
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--text-primary)] text-[30px]">
+                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--action-label)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Flow">Flow</p>
-                            <span class="text-[20px] font-normal opacity-60 text-[var(--text-primary)]">0.4 – 2.5 ml/s</span>
+                            ${rangeHint(SETTINGS_NUMPAD_CONFIGS.steamFlowInput.min, SETTINGS_NUMPAD_CONFIGS.steamFlowInput.max, 'ml/s', flow, 1)}
                         </div>
                         <div class="flex gap-[20px] h-[72px] items-center">
                             <button aria-label="Decrease steam flow" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
@@ -3096,53 +3226,22 @@ export function renderSteamSettings() {
                 </div>
             </div>
 
-            <!-- Steam Stop mode -->
-            <div class="content-stretch flex flex-col gap-[24px] items-start relative w-full">
-                <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--text-primary)] text-[30px]">
-                    <p class="leading-[1.2]" data-i18n-key="Steam Stop">Steam Stop</p>
-                </div>
-                <div class="flex gap-[16px] w-full">
-                    ${stopSegBtn('off', 'Off')}
-                    ${stopSegBtn('time', 'Time')}
-                    ${bengle ? stopSegBtn('temperature', 'Milk Temp', !probe.present) : ''}
-                </div>
-                <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] w-full" data-i18n-key="${stopDescriptions[stopMode]}">${getTranslation(stopDescriptions[stopMode])}</p>
-                ${bengle && !probe.present ? `
-                <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] opacity-60 text-[24px] w-full" data-i18n-key="Requires the Bengle milk temperature probe.">${getTranslation('Requires the Bengle milk temperature probe.')}</p>
-                ` : ''}
-            </div>
 
-            <!-- Steam Duration (Time mode) -->
-            ${stopMode === 'time' ? `
-            <div class="content-stretch flex flex-col items-start relative w-full">
-                <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
-                    <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--text-primary)] text-[30px]">
-                            <p class="leading-[1.2]" data-i18n-key="Duration (seconds)">Duration (seconds)</p>
-                            <span class="text-[20px] font-normal opacity-60 text-[var(--text-primary)]">10 – 120 s</span>
-                        </div>
-                        <div class="flex gap-[20px] h-[72px] items-center">
-                            <button aria-label="Decrease steam duration" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
-                                    onclick="window.flashPlusMinusButton(this); window.adjustSteamDuration(-5);">
-                                <svg aria-hidden="true" width="36" height="36" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M10.416 25H39.5827" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </button>
-                            <div class="flex items-center justify-center" style="width: 130px;">
-                                <input type="text" inputmode="numeric" pattern="[0-9]*" id="steamDurationInput" class="text-center text-[var(--text-primary)] text-[24px] font-bold bg-transparent border-none w-full"
-                                       value="${duration}" step="5" min="10" max="120"
-                                       onchange="window.updateSteamSetting('duration', parseInt(this.value))">
-                                <span class="ml-1 text-[var(--text-primary)] text-[24px] font-bold" aria-hidden="true">s</span>
-                            </div>
-                            <button aria-label="Increase steam duration" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
-                                    onclick="window.flashPlusMinusButton(this); window.adjustSteamDuration(5);">
-                                <svg aria-hidden="true" width="36" height="36" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M24.9993 10.4165V39.5832M10.416 24.9998H39.5827" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </button>
-                        </div>
+            <!-- Steam Stop mode. Bengle only: Milk Temp is the only alternative to
+                 Time, so without a probe-capable machine there is no choice to
+                 offer -- the Duration field above IS the stop, and a lone Time
+                 button would be a control that does nothing. -->
+            ${bengle ? `
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
+            <div class="content-stretch flex flex-col gap-[24px] items-start relative w-full">
+                <div class="flex items-center justify-between gap-[14px] w-full">
+                    <p class="font-['Inter:Bold',sans-serif] font-bold leading-[1.2] not-italic text-[var(--action-label)] text-[30px]" data-i18n-key="Steam Stop">Steam Stop</p>
+                    <div class="flex gap-[20px] items-center">
+                        ${stopSegBtn('time', 'Time')}
+                        ${stopSegBtn('temperature', 'Milk Temp', !probe.present)}
                     </div>
                 </div>
+                <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] w-full" data-i18n-key="${stopDescriptions[stopMode]}">${getTranslation(stopDescriptions[stopMode])}</p>
             </div>
             ` : ''}
 
@@ -3151,7 +3250,7 @@ export function renderSteamSettings() {
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--text-primary)] text-[30px]">
+                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--action-label)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Stop at Milk Temperature (°C)">Stop at Milk Temperature (°C)</p>
                             <span class="text-[20px] font-normal opacity-60 text-[var(--text-primary)]">${tempInputValue(30)} – ${tempInputValue(80)} ${tempUnitLabel()}</span>
                         </div>
@@ -3183,17 +3282,66 @@ export function renderSteamSettings() {
                 </div>
             </div>
             ` : ''}
+            <!-- Steam Duration, Milk Temp stop only: there it is the BACKSTOP under
+                 the probe -- the machine stops on whichever comes first, so a probe
+                 that never reaches target still has a cap -- and the main-page tile
+                 cannot reach it, because an armed milk stop takes the tile's small
+                 slot (steamSlotField) and its mode pair becomes Milk|Flow.
+                 Under a Time stop the tile DOES own the duration (Time mode's big
+                 number, and the small slot in Flow mode), so a copy here would be a
+                 second control for the same value. -->
+            ${stopMode === 'temperature' ? `
+            <div class="content-stretch flex flex-col items-start relative w-full">
+                <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
+                    <div class="content-stretch flex items-center justify-between relative w-full">
+                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--action-label)] text-[30px]">
+                            <p class="leading-[1.2]" data-i18n-key="Duration (seconds)">${getTranslation('Duration (seconds)')}</p>
+                            ${rangeHint(MIN_STEAM_DURATION_S, SETTINGS_NUMPAD_CONFIGS.steamDurationInput.max, 's', duration || undefined)}
+                        </div>
+                        <div class="flex gap-[20px] h-[72px] items-center">
+                            <button aria-label="Decrease steam duration" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
+                                    onclick="window.flashPlusMinusButton(this); window.adjustSteamDuration(-5);">
+                                <svg aria-hidden="true" width="36" height="36" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M10.416 25H39.5827" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                            <div class="flex items-center justify-center" style="width: 130px;">
+                                ${duration === 0 ? `
+                                <!-- 0s is the heater off, the same state the toggle below shows.
+                                     The main page renders it the same way (ui.formatSteamDuration),
+                                     so neither place shows a bare "0" that reads as a short time. -->
+                                <input type="hidden" id="steamDurationInput" value="0">
+                                <p class="text-center text-[var(--text-primary)] text-[24px] font-bold w-full" data-i18n-key="Off">${getTranslation('Off')}</p>
+                                ` : `
+                                <input type="text" inputmode="numeric" pattern="[0-9]*" id="steamDurationInput" class="text-center text-[var(--text-primary)] text-[24px] font-bold bg-transparent border-none w-full"
+                                       value="${duration}" step="5"
+                                       onchange="window.setSteamDurationFromInput(this.value)">
+                                <span class="ml-1 text-[var(--text-primary)] text-[24px] font-bold" aria-hidden="true">s</span>
+                                `}
+                            </div>
+                            <button aria-label="Increase steam duration" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
+                                    onclick="window.flashPlusMinusButton(this); window.adjustSteamDuration(5);">
+                                <svg aria-hidden="true" width="36" height="36" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M24.9993 10.4165V39.5832M10.416 24.9998H39.5827" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+
 
             <!-- Steam Purge Mode -->
             ${settingsCache.de1 ? `
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Steam Purge Mode">Steam Purge Mode</p>
                         </div>
-                        <select class="bg-[#385a92] border-2 border-[#385a92] border-solid h-[62.88px] rounded-[2617.374px] w-[200px] text-white text-[24px] p-2"
-                                onchange="window.updateDe1Setting('steamPurgeMode', this.value)">
+                        <select class="bg-[var(--button-primary-bg)] border-2 border-[var(--mimoja-blue-v2)] border-solid h-[62.88px] rounded-[2617.374px] w-[200px] text-white text-[24px] p-2"
+                                onchange="window.updateDe1Setting('steamPurgeMode', Number(this.value))">
                             <option value="0" ${settingsCache.de1.steamPurgeMode === 0 ? 'selected' : ''} data-i18n-key="Normal">Normal</option>
                             <option value="1" ${settingsCache.de1.steamPurgeMode === 1 ? 'selected' : ''} data-i18n-key="Two Tap Stop">Two Tap Stop</option>
                         </select>
@@ -3413,7 +3561,7 @@ export function renderCupWarmerSettings() {
     const toggle = (id, checked, onchange, disabled = false) => `
         <label class="relative flex items-center flex-shrink-0 w-[100px] h-[50px] ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}">
             <input type="checkbox" id="${id}" class="sr-only peer" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''} onchange="${onchange}">
-            <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+            <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
             <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
         </label>`;
 
@@ -3426,7 +3574,7 @@ export function renderCupWarmerSettings() {
             <!-- Enable -->
             <div class="flex items-center justify-between gap-[24px] w-full">
                 <div class="flex flex-col gap-[4px]">
-                    <p class="font-['Inter:Bold',sans-serif] font-bold text-[#385a92] text-[30px] leading-[1.2]" data-i18n-key="Cup Warmer">Cup Warmer</p>
+                    <p class="font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)] text-[30px] leading-[1.2]" data-i18n-key="Cup Warmer">Cup Warmer</p>
                     <p class="font-['Inter:Regular',sans-serif] font-normal text-[var(--text-primary)] text-[22px] leading-[1.3]" data-i18n-key="Warm your cups on the top plate">Warm your cups on the top plate</p>
                 </div>
                 ${toggle('cupWarmerEnableToggle', enabled, "window.toggleCupWarmer(this.checked)")}
@@ -3459,7 +3607,7 @@ export function renderCupWarmerSettings() {
                     : `<p id="cupWarmerCurrentTemp" class="text-[var(--text-primary)] text-[24px] font-normal opacity-60 leading-[1.2] whitespace-nowrap" data-i18n-key="No reading">No reading</p>`}
             </div>
 
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
 
             <!-- Pre-warm — the FIRMWARE owns the timing; we write two settings
                  and read one status flag. Disabled + explained on firmware that
@@ -3467,7 +3615,7 @@ export function renderCupWarmerSettings() {
             <div class="flex flex-col gap-[24px] w-full">
                 <div class="flex items-center justify-between gap-[24px] w-full">
                     <div class="flex flex-col gap-[4px]">
-                        <p class="font-['Inter:Bold',sans-serif] font-bold text-[#385a92] text-[30px] leading-[1.2]" data-i18n-key="Pre-warm before wake-up">Pre-warm before wake-up</p>
+                        <p class="font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)] text-[30px] leading-[1.2]" data-i18n-key="Pre-warm before wake-up">Pre-warm before wake-up</p>
                         <p class="font-['Inter:Regular',sans-serif] font-normal text-[var(--text-primary)] text-[22px] leading-[1.3]" data-i18n-key="Warm the cups automatically ahead of a scheduled wake time">Warm the cups automatically ahead of a scheduled wake time</p>
                     </div>
                     ${toggle('cupWarmerPrewarmToggle', prewarm.enabled, "window.toggleCupWarmerPrewarm(this.checked)", !prewarm.supported)}
@@ -3476,7 +3624,7 @@ export function renderCupWarmerSettings() {
                 <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic text-amber-600 text-[22px] w-full" data-i18n-key="This machine's firmware doesn't support pre-warm — update the firmware to use it.">This machine's firmware doesn't support pre-warm — update the firmware to use it.</p>
                 ` : ''}
                 ${prewarm.supported && prewarm.active ? `
-                <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic text-[#385a92] text-[22px] w-full" data-i18n-key="Pre-warming now for a scheduled wake.">Pre-warming now for a scheduled wake.</p>
+                <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic text-[var(--mimoja-blue-v2)] text-[22px] w-full" data-i18n-key="Pre-warming now for a scheduled wake.">Pre-warming now for a scheduled wake.</p>
                 ` : ''}
                 ${prewarm.supported && prewarm.enabled ? `
                 <div class="content-stretch flex items-center justify-between relative w-full">
@@ -3619,7 +3767,6 @@ let ledPicker = null;          // iro.ColorPicker instance
 let ledPutTimer = null;        // debounce handle for the wheel-driven flush/preview
 let ledError = false;
 let ledPreviewActive = false;  // a live colour is being previewed on the strip
-let ledPaletteDirty = false;   // cross-state edits not yet PUT (deferred to a preview-end seam)
 let ledLastLit = {};           // last lit colour per 'zoneKey:state', restored on power-on
 // Which tab of the Lighting page is showing. The page holds two things with
 // different commitment models -- a palette that persists to the machine
@@ -3627,6 +3774,20 @@ let ledLastLit = {};           // last lit colour per 'zoneKey:state', restored 
 // type -- so they get separate tabs rather than one stacked column where
 // "Save" looks like it covers both.
 let ledActiveTab = 'colours';  // 'colours' | 'sequence'
+// The wheel is summoned, not docked: it costs a third of the page and most
+// visits only want a preset or a brightness nudge. Tapping a swatch opens it
+// on that swatch, so there is no separate "which target am I editing" mode --
+// ledSelectedZone/State are still the answer, the tap just sets them.
+let ledPickerOpen = false;
+// The Sequence tab borrows that same wheel rather than falling back to the
+// browser's native <input type="color">, which on the WebView build is an OS
+// dialog with none of the presets and none of this page's scaling fixes. When
+// it owns the picker this holds { index, field: 'frontColor'|'rearColor' } --
+// the step colour being edited -- and is null while the palette owns it.
+let ledPickSeq = null;
+// Front and rear as one control. Linked shows ONE card rather than a live card
+// and a ghost of it, so what you see is what the next edit writes.
+let ledLinked = false;
 // Colour step-sequence editor (REAL capability — see led-sequence.js header).
 // The ACTUAL playback timer/writes/ownership arbitration live in
 // led-strip-runner.js, shared with app.js's machine-state trigger -- this page
@@ -3637,14 +3798,25 @@ let ledSeqSteps = null;
 let ledSeqLoop = false;
 let ledSeqTriggerStates = [];
 let ledSeqLoaded = false;
+// The saved sequences and the auto-run switch. ledSeqSteps/Loop/TriggerStates
+// above stay the working copy of whichever preset is active, so every existing
+// step editor keeps writing to exactly one place; ledSeqPersist folds that copy
+// back into the library before storing it.
+let ledSeqLibrary = { enabled: true, activeId: '', presets: [] };
 let ledSeqRunUnsubscribe = null; // set once subscribed to led-strip-runner.js's onRunChange
 let ledSeqRunSnapshot = { owner: null, running: false, index: -1 };
+// Which step's editor is open, or -1. Same idea as ledPickerOpen on the other
+// tab: the thing you tapped is the thing you are editing, and only one editor
+// is on screen at a time.
+let ledSeqSelected = -1;
 let iroLoadPromise = null;
 let iroLoadFailed = false;
 const LED_DEFAULT_ON = 'FFFFAAAA5555'; // warm white — default colour when powering a zone on with no history
 
+// Nine lit colours, one row. Off is deliberately absent: the Power toggle is
+// the off control, and a black swatch among nine lit ones reads as a gap.
 const LED_PRESETS = [
-    ['Off', '#000000'], ['Warm White', '#FFAA55'], ['Soft White', '#FFD9A0'],
+    ['Warm White', '#FFAA55'], ['Soft White', '#FFD9A0'],
     ['Daylight', '#EAF2FF'], ['Blue', '#385A92'], ['Amber', '#FF7A00'],
     ['Red', '#FF2200'], ['Green', '#0CA581'], ['Cyan', '#00C2D1'], ['Purple', '#7A3FF2']
 ];
@@ -3660,6 +3832,51 @@ const ledMachinePaletteState = () =>
     currentMachineState === MachineState.SLEEPING ? 'sleeping' : 'awake';
 function ledCellColor16(zoneKey, stateKey) { return ledState?.[zoneKey]?.[stateKey] || '000000000000'; }
 function ledCurrentColor16() { return ledCellColor16(ledZoneKeys(ledSelectedZone)[0], ledSelectedState); }
+// What the wheel is pointed at — a sequence step's colour while the Sequence
+// tab owns it, otherwise the selected palette cell. Everything that reads the
+// picker's colour (its mount, the hex readout, the preset highlight) goes
+// through this so one wheel can serve both tabs.
+function ledPickColor16() {
+    if (!ledPickSeq) return ledCurrentColor16();
+    const step = (ledSeqLoad() || [])[ledPickSeq.index];
+    return step ? ledRgbToColor16(ledHexToRgb(step[ledPickSeq.field])) : '000000000000';
+}
+// Apply a picked colour to whatever the wheel points at. A palette edit lands
+// in ledState and previews on the strip; a sequence edit lands in the step and
+// does not preview -- the sequence has a Play button for that, and a preview
+// would fight a run already on the strip.
+function ledPickWrite(hex8) {
+    if (ledPickSeq) {
+        ledSeqSteps = updateStep(ledSeqLoad(), ledPickSeq.index, { [ledPickSeq.field]: hex8 });
+        ledPaintSeqColorsDom();
+        return;
+    }
+    if (!ledState) return;
+    const c16 = ledRgbToColor16(ledHexToRgb(hex8));
+    ledZoneKeys(ledSelectedZone).forEach((k) => {
+        if (!ledState[k]) return;
+        const cur = ledState[k][ledSelectedState];
+        if (c16 === '000000000000' && cur && cur !== '000000000000') ledLastLit[k + ':' + ledSelectedState] = cur;
+        ledState[k][ledSelectedState] = c16;
+    });
+    ledUpdateSwatchesDom(hex8);
+    ledSchedulePreview();
+}
+// End of a gesture. A sequence step persists to localStorage only here, not on
+// every wheel frame.
+function ledPickCommit() {
+    if (ledPickSeq) ledSeqPersist();
+    else ledCommitEdit();
+}
+// Hand the wheel back to the palette. Called wherever the step it points at
+// could move or vanish (a structural edit, a preset switch, closing the step
+// editor) -- retargeting silently would edit a different step than the one the
+// user opened.
+function ledSeqDropPicker() {
+    if (!ledPickSeq) return;
+    ledPickSeq = null;
+    ledPickerOpen = false;
+}
 function ledNormalize(data) {
     const z = (o) => ({ awake: o?.awake || '000000000000', sleeping: o?.sleeping || '000000000000' });
     return { frontStrip: z(data?.frontStrip), backStrip: z(data?.backStrip), frontSwitch: z(data?.frontSwitch) };
@@ -3673,21 +3890,48 @@ function ledSeqLoad() {
     if (!ledSeqLoaded) {
         let stored = null;
         try { stored = localStorage.getItem(LED_SEQUENCE_KEY); } catch (e) { /* private mode */ }
-        const sequence = parseLedSequence(stored);
-        ledSeqSteps = sequence.steps;
-        ledSeqLoop = sequence.loop;
-        ledSeqTriggerStates = sequence.triggerStates;
+        ledSeqLibrary = parseLedLibrary(stored);
+        ledSeqAdoptActive();
         ledSeqLoaded = true;
     }
     return ledSeqSteps;
 }
 
+// Point the working copy at the active preset (an empty library edits nothing).
+function ledSeqAdoptActive() {
+    const active = getActivePreset(ledSeqLibrary);
+    ledSeqSteps = active ? active.steps : [];
+    ledSeqLoop = active ? active.loop : false;
+    ledSeqTriggerStates = active ? active.triggerStates : [];
+}
+
 function ledSeqPersist() {
-    try {
-        localStorage.setItem(LED_SEQUENCE_KEY, serializeLedSequence({
+    if (ledSeqLibrary.activeId) {
+        ledSeqLibrary = updateActivePreset(ledSeqLibrary, {
             steps: ledSeqSteps || [], loop: ledSeqLoop, triggerStates: ledSeqTriggerStates,
-        }));
+        });
+    }
+    try {
+        localStorage.setItem(LED_SEQUENCE_KEY, serializeLedLibrary(ledSeqLibrary));
     } catch (e) { /* private mode — in-memory state still updates */ }
+}
+
+// A library edit (switch preset, add, delete, rename, auto-run switch): fold
+// the working copy back in first so unsaved step edits are not lost, apply the
+// change, then re-adopt whatever is active now.
+function ledSeqLibraryEdit(mutate) {
+    ledSeqDropPicker();
+    ledSeqLoad();
+    ledSeqPersist();
+    ledSeqLibrary = mutate(ledSeqLibrary);
+    ledSeqAdoptActive();
+    ledSeqPersist();
+    if (activeSettingsCategory === 'ledstrip') updateSettingsContentArea('ledstrip');
+}
+
+/** Chip/field label for a preset: its name, or "Sequence N" while unnamed. */
+function ledSeqPresetLabel(preset, index) {
+    return preset?.name || `${getTranslation('Sequence')} ${index + 1}`;
 }
 
 // Mirror led-strip-runner.js's shared run state (owner/index) into this page
@@ -3697,6 +3941,9 @@ function ledSeqPersist() {
 // exit seam.
 function ledSeqEnsureSubscribed() {
     if (ledSeqRunUnsubscribe) return;
+    // While this page is open only Play drives the strip -- see
+    // setTriggerSuspended in led-strip-runner.js.
+    ledRunSetTriggerSuspended(true);
     ledSeqRunSnapshot = ledRunGetState();
     ledSeqRunUnsubscribe = ledRunOnChange((snapshot) => {
         ledSeqRunSnapshot = snapshot;
@@ -3710,6 +3957,7 @@ function ledSeqEnsureSubscribed() {
 // control back to the state trigger -- see led-strip-runner.js.
 function ledSeqReleaseManual() {
     ledRunRequestStop('manual');
+    ledRunSetTriggerSuspended(false); // hands the strip back to the state trigger
     if (ledSeqRunUnsubscribe) { ledSeqRunUnsubscribe(); ledSeqRunUnsubscribe = null; }
 }
 
@@ -3743,21 +3991,12 @@ export function renderLedSettings() {
     }
     ledSeqEnsureSubscribed();
 
-    const isOn = ledCurrentColor16() !== '000000000000';
-    const seg = (value, label, current, handler) => {
-        const active = current === value;
-        return `<button class="flex-1 h-[80px] rounded-[10px] font-['Inter:Bold',sans-serif] font-bold text-[26px] flex items-center justify-center cursor-pointer transition-colors duration-200 ${active ? 'bg-[var(--mimoja-blue)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[var(--text-primary)]'}"
-                    aria-pressed="${active}" onclick="window.${handler}('${value}')" data-i18n-key="${label}">${getTranslation(label)}</button>`;
-    };
-    const cell = (zoneKey, zoneLabel, stateKey) => {
-        const isActive = ledZoneKeys(ledSelectedZone).includes(zoneKey) && ledSelectedState === stateKey;
-        return `<button aria-label="${zoneLabel} ${stateKey}" data-led-cell="${zoneKey}:${stateKey}" onclick="window.ledSelectCell('${zoneKey}','${stateKey}')"
-                    class="h-[64px] rounded-[10px] border-2 ${isActive ? 'border-[var(--mimoja-blue)]' : 'border-[var(--profile-button-outline-color)]'}"
-                    style="background-color: ${ledColor16ToHex8(ledCellColor16(zoneKey, stateKey))}"></button>`;
-    };
+    const isOn = ledPickColor16() !== '000000000000';
+    const currentHex = ledColor16ToHex8(ledPickColor16());
     const presetSwatches = LED_PRESETS.map(([name, hex]) =>
-        `<button title="${name}" aria-label="${name}" onclick="window.ledApplyPreset('${hex}')"
-            class="w-[64px] h-[64px] rounded-full border-2 border-[var(--profile-button-outline-color)]" style="background-color: ${hex}"></button>`
+        `<button class="led-swatch" title="${name}" aria-label="${name}" data-hex="${hex.toUpperCase()}"
+            aria-pressed="${hex.toUpperCase() === currentHex.toUpperCase()}"
+            onclick="window.ledApplyPreset('${hex}')" style="background-color: ${hex}"></button>`
     ).join('');
 
     const seqSteps = ledSeqLoad();
@@ -3766,98 +4005,186 @@ export function renderLedSettings() {
             onclick="window.ledSelectTab('${id}')" data-i18n-key="${label}">${getTranslation(label)}</button>`;
 
     // ── Static Colours ───────────────────────────────────────────────────
-    // The palette that PERSISTS on the machine. Save/Reset belong here and
-    // only here: the sequence tab saves itself as you type, and having one
-    // Save button under both made it look like it covered the sequence too.
-    const coloursPanel = `
-        <div class="flex flex-row gap-[48px] w-full items-start flex-wrap">
-            <div class="flex flex-col gap-[28px] flex-1 min-w-[420px]">
-                <div class="flex flex-col gap-[12px] w-full">
-                    <p class="led-label text-[26px]" data-i18n-key="Zone">Zone</p>
-                    <div class="flex gap-[12px] w-full">
-                        ${seg('front', 'Front', ledSelectedZone, 'ledSelectZone')}
-                        ${seg('rear', 'Rear', ledSelectedZone, 'ledSelectZone')}
-                        ${seg('both', 'Both', ledSelectedZone, 'ledSelectZone')}
-                    </div>
+    // One card per physical strip, because that is what the owner is thinking
+    // about ("the front light"), not a zone x state matrix. Each card carries
+    // the two colours that strip can hold and a brightness slider, which is
+    // the control people actually reach for and which used to be buried as the
+    // wheel's value track. The wheel itself only appears once you tap a colour.
+    //
+    // Save/Reset live here and only here: the Sequence tab saves itself as you
+    // type, and one Save under both made it look like it covered the sequence.
+    const stripCard = (zone, label) => {
+        const keys = ledZoneKeys(zone);
+        const swatch = (stateKey, stateLabel) => {
+            const open = ledPickerOpen && ledSelectedZone === zone && ledSelectedState === stateKey;
+            const hexes = keys.map((k) => ledColor16ToHex8(ledCellColor16(k, stateKey)));
+            const fill = hexes.length > 1 && hexes[0] !== hexes[1]
+                ? `background-image: linear-gradient(90deg, ${hexes[0]} 0 50%, ${hexes[1]} 50% 100%)`
+                : `background-color: ${hexes[0]}`;
+            const off = hexes.every((h) => h.toUpperCase() === '#000000');
+            return `
+                <div class="led-pick-wrap">
+                    <span class="led-pick-cap" data-i18n-key="${stateLabel}">${getTranslation(stateLabel)}</span>
+                    <button class="led-pick" aria-pressed="${open}" data-led-cell="${zone}:${stateKey}"
+                        aria-label="${getTranslation(label)} ${getTranslation(stateLabel)}"
+                        onclick="window.ledOpenPicker('${zone}','${stateKey}')" style="${fill}">${off ? '<span class="led-pick-off"></span>' : ''}</button>
+                </div>`;
+        };
+        // Brightness acts on the lit (awake) colour -- the asleep bank is almost
+        // always off, and a slider that silently moved both would surprise.
+        const level = ledValueOf(ledColor16ToHex8(ledCellColor16(keys[0], 'awake')));
+        return `
+            <div class="led-card">
+                <p class="led-card-title" data-i18n-key="${label}">${getTranslation(label)}</p>
+                <div class="led-card-swatches">
+                    ${swatch('awake', 'Awake')}
+                    ${swatch('sleeping', 'Asleep')}
                 </div>
-                <div class="flex flex-col gap-[12px] w-full">
-                    <p class="led-label text-[26px]" data-i18n-key="State">State</p>
-                    <div class="flex gap-[12px] w-full">
-                        ${seg('awake', 'Awake', ledSelectedState, 'ledSelectState')}
-                        ${seg('sleeping', 'Asleep', ledSelectedState, 'ledSelectState')}
-                    </div>
+                <div class="led-bright">
+                    <span class="led-bright-icon" aria-hidden="true">&#9728;</span>
+                    <input type="range" class="brightness-slider led-bright-slider" min="0" max="100" step="1" value="${level}"
+                        aria-label="${getTranslation(label)} ${getTranslation('Brightness')}"
+                        oninput="window.ledSetBrightness('${zone}', this.value)">
+                    <span class="led-bright-val">${level}%</span>
                 </div>
-                <div class="flex flex-col gap-[12px] w-full">
-                    <p class="led-label text-[26px]" data-i18n-key="Current Colours">Current Colours</p>
-                    <div class="grid w-full gap-[12px] items-center" style="grid-template-columns: 120px 1fr 1fr;">
-                        <div></div>
-                        <div class="text-center text-[var(--text-primary)] text-[22px] font-semibold" data-i18n-key="Awake">Awake</div>
-                        <div class="text-center text-[var(--text-primary)] text-[22px] font-semibold" data-i18n-key="Asleep">Asleep</div>
-                        <div class="text-[var(--text-primary)] text-[22px] font-semibold" data-i18n-key="Front">Front</div>
-                        ${cell('frontStrip', 'Front', 'awake')}
-                        ${cell('frontStrip', 'Front', 'sleeping')}
-                        <div class="text-[var(--text-primary)] text-[22px] font-semibold" data-i18n-key="Rear">Rear</div>
-                        ${cell('backStrip', 'Rear', 'awake')}
-                        ${cell('backStrip', 'Rear', 'sleeping')}
-                    </div>
-                </div>
-                <div class="flex flex-col gap-[12px] w-full">
-                    <p class="led-label text-[26px]" data-i18n-key="Presets">Presets</p>
-                    <div class="flex flex-wrap gap-[14px]">${presetSwatches}</div>
-                </div>
-            </div>
+            </div>`;
+    };
 
-            <div class="flex flex-col gap-[20px] items-center">
-                <div class="flex items-center justify-between gap-[20px] w-full">
-                    <span class="led-label text-[26px]" data-i18n-key="Power">Power</span>
-                    <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
-                        <input type="checkbox" id="ledPowerToggle" class="sr-only peer" ${isOn ? 'checked' : ''} onchange="window.ledSetPower(this.checked)">
-                        <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
-                        <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
-                    </label>
-                </div>
-                <div id="led-picker-slot" style="position:relative;"><div id="led-picker" style="${isOn ? '' : 'opacity:0.35;pointer-events:none;'}"></div></div>
-                <p class="led-muted text-[20px]" data-i18n-key="Wheel picks colour · slider sets brightness">Wheel picks colour · slider sets brightness</p>
-                <div class="flex items-center gap-[16px]" style="${isOn ? '' : 'opacity:0.35;'}">
-                    <div id="led-current-swatch" class="w-[56px] h-[56px] rounded-[10px] border-2 border-[var(--profile-button-outline-color)]" style="background-color: ${ledColor16ToHex8(ledCurrentColor16())}"></div>
-                    <span id="led-hex-readout" class="font-['NotoSansMono'] text-[var(--text-primary)] text-[24px]">${isOn ? ledColor16ToHex8(ledCurrentColor16()) : 'Off'}</span>
-                </div>
+    const pickerPanel = !ledPickerOpen ? '' : `
+        <div class="led-picker-panel">
+            <div class="led-swatches">${presetSwatches}</div>
+            <div id="led-picker-slot" style="position:relative;"><div id="led-picker" style="${isOn ? '' : 'opacity:0.35;pointer-events:none;'}"></div></div>
+            <div class="led-picker-side">
+                <button class="led-icon-btn" data-size="lg" aria-label="${getTranslation('Close')}" onclick="window.ledClosePicker()">&times;</button>
+                <div id="led-current-swatch" class="led-picker-current" style="background-color: ${currentHex}"></div>
+                <span id="led-hex-readout" class="font-['NotoSansMono'] text-[var(--text-primary)] text-[22px]">${isOn ? currentHex : getTranslation('Off')}</span>
+                <label class="flex items-center cursor-pointer">
+                    <span class="relative flex items-center flex-shrink-0 w-[76px] h-[38px]">
+                        <input type="checkbox" id="ledPowerToggle" class="sr-only peer" aria-label="${getTranslation('Power')}" ${isOn ? 'checked' : ''} onchange="window.ledSetPower(this.checked)">
+                        <span class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></span>
+                        <span class="absolute top-1/2 left-[4px] -translate-y-1/2 peer-checked:translate-x-[34px] size-[30px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></span>
+                    </span>
+                </label>
+            </div>
+        </div>`;
+
+    const coloursPanel = `
+        <div class="led-cards">
+            ${ledLinked ? stripCard('both', 'Both') : stripCard('front', 'Front') + stripCard('rear', 'Rear')}
+        </div>
+        <div class="flex items-center gap-[20px] w-full flex-wrap">
+            <label class="flex items-center gap-[12px] cursor-pointer">
+                <span class="text-[var(--text-primary)] text-[20px] font-semibold" data-i18n-key="Both">${getTranslation('Both')}</span>
+                <span class="relative flex items-center flex-shrink-0 w-[76px] h-[38px]">
+                    <input type="checkbox" class="sr-only peer" ${ledLinked ? 'checked' : ''} onchange="window.ledSetLinked(this.checked)">
+                    <span class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></span>
+                    <span class="absolute top-1/2 left-[4px] -translate-y-1/2 peer-checked:translate-x-[34px] size-[30px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></span>
+                </span>
+            </label>
+            <div class="flex justify-end gap-[20px] ml-auto">
+                <button class="border-2 border-[var(--mimoja-blue-v2)] text-[var(--mimoja-blue-v2)] h-[82px] px-[48px] rounded-[67.5px] text-[24px] font-bold" onclick="window.ledReset()" data-i18n-key="Reset">Reset</button>
+                <button class="bg-[var(--button-primary-bg)] text-white h-[82px] px-[48px] rounded-[67.5px] text-[24px] font-bold" onclick="window.ledSave()" data-i18n-key="Apply">Apply</button>
             </div>
         </div>
 
-        <div class="flex justify-end gap-[20px] w-full">
-            <button class="border-2 border-[var(--mimoja-blue)] text-[var(--mimoja-blue)] h-[82px] px-[48px] rounded-[67.5px] text-[24px] font-bold" onclick="window.ledReset()" data-i18n-key="Reset">Reset</button>
-            <button class="bg-[var(--mimoja-blue)] text-white h-[82px] px-[48px] rounded-[67.5px] text-[24px] font-bold" onclick="window.ledSave()" data-i18n-key="Save">Save</button>
-        </div>`;
+        ${ledPickSeq ? '' : pickerPanel}`;
 
     // ── Sequence & Triggers ──────────────────────────────────────────────
-    // A step's two colours are the front and rear of ONE moment, so they sit
-    // in a single bordered cell rather than as two loose inputs; the row's
-    // left edge is the active-step indicator (see .led-step in main.css).
-    const seqStepRow = (step, index) => `
-        <div class="led-step ${ledSeqRunSnapshot.index === index ? 'led-seq-step-active' : ''}" data-led-seq-step="${index}">
-            <span class="led-step-index">${index + 1}</span>
-            <div class="led-step-colors">
-                <input type="color" aria-label="${getTranslation('Front')}" value="${step.frontColor}"
-                    onchange="window.ledSeqUpdateStep(${index}, { frontColor: this.value })" />
-                <input type="color" aria-label="${getTranslation('Rear')}" value="${step.rearColor}"
-                    onchange="window.ledSeqUpdateStep(${index}, { rearColor: this.value })" />
+    // A sequence is the one thing on this page that genuinely IS a sequence,
+    // so it is drawn as a timeline rather than a form: each segment is as wide
+    // as its step is long and carries that step's two colours, which makes the
+    // shape of the whole light show readable at a glance. Tapping a segment
+    // opens its editor underneath -- the same "the thing you tapped is the
+    // thing you are editing" model the Static Colours tab uses.
+    const seqPresets = ledSeqLibrary.presets;
+    const seqActiveIndex = seqPresets.findIndex((p) => p.id === ledSeqLibrary.activeId);
+    const seqChips = seqPresets.map((preset, index) => `
+        <button type="button" class="led-chip" aria-pressed="${preset.id === ledSeqLibrary.activeId}"
+            onclick="window.ledSeqSelectPreset('${preset.id}')">${escapeHtml(ledSeqPresetLabel(preset, index))}</button>`).join('');
+
+    const { segments } = sequenceTimeline(seqSteps);
+    const seqSelected = (ledSeqSelected >= 0 && ledSeqSelected < seqSteps.length) ? ledSeqSelected : -1;
+
+    // Two lanes, front above rear, named in a gutter outside the bar -- a
+    // colour on its own cannot say which strip it drives, and a legend would
+    // make you look away from the thing you are reading.
+    const timeline = !segments.length ? '' : `
+        <div class="led-timeline-wrap">
+            <div class="led-lane-names">
+                <span data-i18n-key="Front">${getTranslation('Front')}</span>
+                <span data-i18n-key="Rear">${getTranslation('Rear')}</span>
             </div>
-            <input type="number" class="led-step-duration" min="${MIN_STEP_DURATION_MS}" max="${MAX_STEP_DURATION_MS}" step="100"
-                value="${step.durationMs}" aria-label="${getTranslation('Duration (ms)')}"
-                onchange="window.ledSeqUpdateStep(${index}, { durationMs: this.value })" />
-            <span class="led-muted text-[16px]" data-i18n-key="ms">ms</span>
-            <div class="flex gap-[6px] ml-auto">
-                <button class="led-icon-btn" aria-label="${getTranslation('Move step up')}" ${index === 0 ? 'disabled' : ''}
-                    onclick="window.ledSeqMoveStep(${index}, 'up')">&uarr;</button>
-                <button class="led-icon-btn" aria-label="${getTranslation('Move step down')}" ${index === seqSteps.length - 1 ? 'disabled' : ''}
-                    onclick="window.ledSeqMoveStep(${index}, 'down')">&darr;</button>
-                <button class="led-icon-btn" data-variant="remove" aria-label="${getTranslation('Remove step')}"
-                    onclick="window.ledSeqRemoveStep(${index})">&times;</button>
+            <div class="led-timeline" role="group" aria-label="${getTranslation('Sequence')}">
+                ${segments.map((seg) => `
+                    <button class="led-seg" style="width:${seg.percent}%; background-image: linear-gradient(180deg, ${seg.frontColor} 0 50%, ${seg.rearColor} 50% 100%)"
+                        data-led-seq-step="${seg.index}" aria-pressed="${seg.index === seqSelected}"
+                        aria-label="${seg.index + 1} · ${formatStepSeconds(seqSteps[seg.index].durationMs)}s"
+                        onclick="window.ledSeqSelectStep(${seg.index})"><span class="led-seg-no">${seg.index + 1}</span></button>`).join('')}
             </div>
         </div>`;
 
+    // The same swatch-as-button the Static Colours cards use, and tapping it
+    // opens the same wheel -- a native <input type="color"> here would be an OS
+    // dialog with no presets, and on the WebView build no dialog at all.
+    const seqColorPick = (field, label, hex) => `
+        <div class="led-pick-wrap">
+            <span class="led-pick-cap" data-i18n-key="${label}">${getTranslation(label)}</span>
+            <button class="led-pick" data-led-seq-pick="${seqSelected}:${field}"
+                aria-pressed="${!!ledPickSeq && ledPickSeq.index === seqSelected && ledPickSeq.field === field}"
+                aria-label="${getTranslation(label)}" style="background-color: ${hex}"
+                onclick="window.ledSeqOpenPicker(${seqSelected}, '${field}')"></button>
+        </div>`;
+
+    const stepEditor = seqSelected < 0 ? '' : (() => {
+        const step = seqSteps[seqSelected];
+        return `
+        <div class="led-step-editor">
+            <span class="led-step-index">${seqSelected + 1}</span>
+            <div class="led-step-colors">
+                ${seqColorPick('frontColor', 'Front', step.frontColor)}
+                ${seqColorPick('rearColor', 'Rear', step.rearColor)}
+            </div>
+            <div class="led-dur">
+                <button class="led-icon-btn" aria-label="${getTranslation('Duration (ms)')}"
+                    onclick="window.ledSeqNudgeDuration(${seqSelected}, -1)">&minus;</button>
+                <span class="led-dur-val">${formatStepSeconds(step.durationMs)}s</span>
+                <button class="led-icon-btn" aria-label="${getTranslation('Duration (ms)')}"
+                    onclick="window.ledSeqNudgeDuration(${seqSelected}, 1)">+</button>
+            </div>
+            <div class="flex gap-[8px] ml-auto">
+                <button class="led-icon-btn" aria-label="${getTranslation('Move step up')}" ${seqSelected === 0 ? 'disabled' : ''}
+                    onclick="window.ledSeqMoveStep(${seqSelected}, 'up')">&larr;</button>
+                <button class="led-icon-btn" aria-label="${getTranslation('Move step down')}" ${seqSelected === seqSteps.length - 1 ? 'disabled' : ''}
+                    onclick="window.ledSeqMoveStep(${seqSelected}, 'down')">&rarr;</button>
+                <button class="led-icon-btn" data-variant="remove" aria-label="${getTranslation('Remove step')}"
+                    onclick="window.ledSeqRemoveStep(${seqSelected})">&times;</button>
+            </div>
+        </div>`;
+    })();
+
+    // No "Sequence"/"Name" headings: the chips sit under a tab already called
+    // Sequence, and the field placeholder names the sequence it renames. New
+    // and Delete are the same + and x the step editor uses, so the row reads as
+    // controls rather than prose.
+    const presetPanel = `
+        <div class="flex flex-wrap items-center gap-[12px] w-full">
+            ${seqChips}
+            <button type="button" class="led-icon-btn" data-size="lg" aria-label="${getTranslation('New')}"
+                onclick="window.ledSeqNewPreset()">+</button>
+        </div>
+        ${seqActiveIndex < 0 ? '' : `
+        <div class="flex flex-wrap items-center gap-[12px] w-full">
+            <input id="led-seq-name" type="text" class="led-seq-name" maxlength="${MAX_PRESET_NAME_LENGTH}"
+                value="${escapeHtml(seqPresets[seqActiveIndex].name)}"
+                placeholder="${escapeHtml(ledSeqPresetLabel(null, seqActiveIndex))}"
+                aria-label="${getTranslation('Name')}"
+                onchange="window.ledSeqRenamePreset(this.value)" />
+            <button type="button" class="led-icon-btn" data-size="lg" data-variant="remove" aria-label="${getTranslation('Delete')}"
+                onclick="window.ledSeqDeletePreset()">&times;</button>
+        </div>`}`;
+
     const sequencePanel = `
+        ${presetPanel}
         <div class="led-transport w-full">
             <button id="led-seq-transport" class="led-transport-btn" ${ledSeqTransportAttrs()}
                 onclick="window.ledSeqToggleRun()">${ledSeqTransportLabel()}</button>
@@ -3870,35 +4197,45 @@ export function renderLedSettings() {
                 <span class="text-[var(--text-primary)] text-[20px] font-semibold" data-i18n-key="Loop">Loop</span>
                 <span class="relative flex items-center flex-shrink-0 w-[76px] h-[38px]">
                     <input type="checkbox" class="sr-only peer" ${ledSeqLoop ? 'checked' : ''} onchange="window.ledSeqSetLoop(this.checked)">
-                    <span class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></span>
+                    <span class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></span>
                     <span class="absolute top-1/2 left-[4px] -translate-y-1/2 peer-checked:translate-x-[34px] size-[30px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></span>
                 </span>
             </label>
         </div>
+        ${timeline}
 
-        <div class="flex flex-col gap-[10px] w-full">
-            ${seqSteps.length ? seqSteps.map(seqStepRow).join('')
-                : `<p class="led-muted text-[20px]" data-i18n-key="Add a step to start building a sequence.">Add a step to start building a sequence.</p>`}
-        </div>
-        <button class="border-2 border-[var(--mimoja-blue)] text-[var(--mimoja-blue)] h-[56px] px-[28px] rounded-[28px] text-[18px] font-bold self-start"
+        ${stepEditor}
+        ${ledPickSeq ? pickerPanel : ''}
+
+        ${seqSteps.length ? '' : `<p class="led-muted text-[20px]" data-i18n-key="Add a step to start building a sequence.">Add a step to start building a sequence.</p>`}
+        <button class="border-2 border-[var(--mimoja-blue-v2)] text-[var(--mimoja-blue-v2)] h-[56px] px-[28px] rounded-[28px] text-[18px] font-bold self-start"
             onclick="window.ledSeqAddStep()" data-i18n-key="Add step">Add step</button>
 
         <div class="h-0 relative w-full"><hr class="border-t border-[var(--profile-button-outline-color)] w-full" /></div>
         <div class="flex flex-col gap-[12px] w-full">
-            <p class="led-label text-[26px]" data-i18n-key="Auto-run">Auto-run</p>
+            <div class="flex items-center gap-[20px] w-full">
+                <p class="led-label text-[26px]" data-i18n-key="Auto-run">Auto-run</p>
+                <label class="flex items-center gap-[12px] ml-auto cursor-pointer">
+                    <span class="relative flex items-center flex-shrink-0 w-[76px] h-[38px]">
+                        <input type="checkbox" class="sr-only peer" aria-label="${getTranslation('Auto-run')}" ${ledSeqLibrary.enabled ? 'checked' : ''} onchange="window.ledSeqSetEnabled(this.checked)">
+                        <span class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></span>
+                        <span class="absolute top-1/2 left-[4px] -translate-y-1/2 peer-checked:translate-x-[34px] size-[30px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></span>
+                    </span>
+                </label>
+            </div>
             <p class="led-muted text-[20px]" data-i18n-key="Play this sequence whenever the machine enters:">Play this sequence whenever the machine enters:</p>
-            <div class="flex flex-wrap gap-[10px]">
-                ${LED_TRIGGER_STATES.map((s) => {
-                    const active = ledSeqTriggerStates.includes(s.id);
+            <div class="flex flex-wrap gap-[10px]" style="${ledSeqLibrary.enabled ? '' : 'opacity:0.35;pointer-events:none;'}">
+                ${LED_TRIGGER_STATES.map((st) => {
+                    const active = ledSeqTriggerStates.includes(st.id);
                     return `<button type="button" class="led-chip" aria-pressed="${active}"
-                        onclick="window.ledSeqToggleTriggerState('${s.id}', ${!active})"
-                        data-i18n-key="${s.label}">${getTranslation(s.label)}</button>`;
+                        onclick="window.ledSeqToggleTriggerState('${st.id}', ${!active})"
+                        data-i18n-key="${st.label}">${getTranslation(st.label)}</button>`;
                 }).join('')}
             </div>
         </div>`;
 
     return `
-        <div class="led-page content-stretch flex flex-col gap-[36px] items-start relative w-full">
+        <div class="led-page content-stretch flex flex-col gap-[12px] items-start relative w-full">
             <div class="flex flex-col font-['Inter:Semi_Bold',sans-serif] font-semibold justify-center leading-[0] min-w-full not-italic relative text-[var(--text-primary)] text-[36px] text-center w-[min-content]">
                 <p class="leading-[1.2]" data-i18n-key="Lighting">Lighting</p>
             </div>
@@ -3908,7 +4245,7 @@ export function renderLedSettings() {
                 ${tab('sequence', 'Sequence')}
             </div>
 
-            <div class="flex flex-col gap-[28px] items-start w-full" role="tabpanel">
+            <div class="flex flex-col gap-[14px] items-start w-full" role="tabpanel">
                 ${ledActiveTab === 'sequence' ? sequencePanel : coloursPanel}
             </div>
         </div>
@@ -3946,13 +4283,23 @@ function ledSeqTransportAttrs() {
 // separate nodes -- translatePage() replaces a node's text wholesale, so a
 // "Step 2 of 5" string baked into one key would lose its numbers.
 function ledSeqStatusHtml() {
+    const totalSecs = (steps) => formatStepSeconds((steps || []).reduce((ms, st) => ms + (st.durationMs || 0), 0));
+    // "step of total, step seconds of total seconds" -- the same reading for
+    // the step that is playing and for the step the user just tapped, so the
+    // line does not change shape when a run starts or ends.
+    const counts = (steps, index) =>
+        `<span class="led-muted"> ${index + 1}&thinsp;/&thinsp;${steps.length},</span>` +
+        `<span class="led-muted"> ${formatStepSeconds(steps[index]?.durationMs || 0)}s&thinsp;/&thinsp;${totalSecs(steps)}s</span>`;
     if (!ledSeqRunSnapshot.running) {
-        return `<span class="led-muted" data-i18n-key="Stopped">${getTranslation('Stopped')}</span>`;
+        // No "Stopped": the strip and the transport button already say so.
+        // Idle, the line reports the selected step, and nothing if none is.
+        const steps = ledSeqSteps || [];
+        return (ledSeqSelected >= 0 && ledSeqSelected < steps.length) ? counts(steps, ledSeqSelected) : '';
     }
     const label = ledSeqIsManualRun() ? 'Playing' : 'Auto-running';
-    const total = ledSeqRunSnapshot.steps?.length || 0;
-    return `<span style="color: var(--mimoja-blue);" data-i18n-key="${label}">${getTranslation(label)}</span>` +
-        `<span class="led-muted"> ${ledSeqRunSnapshot.index + 1}&thinsp;/&thinsp;${total}</span>`;
+    const steps = ledSeqRunSnapshot.steps || [];
+    return `<span style="color: var(--mimoja-blue-v2);" data-i18n-key="${label}">${getTranslation(label)}</span>` +
+        counts(steps, ledSeqRunSnapshot.index);
 }
 
 function initLedPicker() {
@@ -3964,7 +4311,7 @@ function initLedPicker() {
     el.style.height = '';
     ledPicker = new window.iro.ColorPicker(el, {
         width: 300,
-        color: ledColor16ToHex8(ledCurrentColor16()),
+        color: ledColor16ToHex8(ledPickColor16()),
         borderWidth: 2,
         borderColor: 'var(--box-color)',
         handleRadius: 18,
@@ -3998,13 +4345,102 @@ function initLedPicker() {
         el.style.transformOrigin = 'top left';
         el.style.transform = `scale(${1 / s})`;
     }
-    ledPicker.on('input:change', (color) => {
-        const c16 = ledRgbToColor16(color.rgb);
-        ledZoneKeys(ledSelectedZone).forEach((k) => { if (ledState[k]) ledState[k][ledSelectedState] = c16; });
-        ledUpdateSwatchesDom(color.hexString);
-        ledSchedulePut();
+    ledPicker.on('input:change', (color) => ledPickWrite(color.hexString));
+    ledPicker.on('input:end', () => ledPickCommit());
+}
+
+// Repaint the Static Colours tab in place.
+//
+// Tapping a colour used to re-render the whole category, which throws the iro
+// wheel away and builds a new one -- mounted at natural size, measured, then
+// counter-scaled -- and that rebuild is visible as a flash. Nothing about the
+// panel's SHAPE changes when you pick a different target or a different
+// colour, only its values, so those are patched instead. A re-render is kept
+// for the two cases that really do change the shape: opening and closing.
+function ledPaintColoursDom() {
+    document.querySelectorAll('.led-pick[data-led-cell]').forEach((el) => {
+        const [zone, stateKey] = el.dataset.ledCell.split(':');
+        const hexes = ledZoneKeys(zone).map((k) => ledColor16ToHex8(ledCellColor16(k, stateKey)));
+        if (hexes.length > 1 && hexes[0] !== hexes[1]) {
+            el.style.backgroundImage = `linear-gradient(90deg, ${hexes[0]} 0 50%, ${hexes[1]} 50% 100%)`;
+            el.style.backgroundColor = '';
+        } else {
+            el.style.backgroundImage = '';
+            el.style.backgroundColor = hexes[0];
+        }
+        el.setAttribute('aria-pressed', String(ledPickerOpen && ledSelectedZone === zone && ledSelectedState === stateKey));
+        const isOff = hexes.every((h) => h.toUpperCase() === '#000000');
+        const mark = el.querySelector('.led-pick-off');
+        if (isOff && !mark) {
+            const span = document.createElement('span');
+            span.className = 'led-pick-off';
+            el.appendChild(span);
+        } else if (!isOff && mark) {
+            mark.remove();
+        }
     });
-    ledPicker.on('input:end', () => ledCommitEdit());
+    document.querySelectorAll('.led-card').forEach((card) => {
+        const pick = card.querySelector('.led-pick[data-led-cell$=":awake"]');
+        if (!pick) return;
+        const zone = pick.dataset.ledCell.split(':')[0];
+        const level = ledValueOf(ledColor16ToHex8(ledCellColor16(ledZoneKeys(zone)[0], 'awake')));
+        const val = card.querySelector('.led-bright-val');
+        if (val) val.textContent = `${level}%`;
+        const slider = card.querySelector('.led-bright-slider');
+        // Never yank the slider out from under a finger that is still on it.
+        if (slider && document.activeElement !== slider) slider.value = String(level);
+    });
+    const hex = ledColor16ToHex8(ledPickColor16());
+    const lit = ledPickColor16() !== '000000000000';
+    const current = document.getElementById('led-current-swatch');
+    if (current) current.style.backgroundColor = hex;
+    const readout = document.getElementById('led-hex-readout');
+    if (readout) readout.textContent = lit ? hex : getTranslation('Off');
+    const power = document.getElementById('ledPowerToggle');
+    if (power) power.checked = lit;
+    const picker = document.getElementById('led-picker');
+    // Two properties, not cssText: initLedPicker pins and counter-scales this
+    // element inline, and writing cssText wholesale threw that away -- the
+    // wheel snapped back to its natural size (and its touch math broke) the
+    // moment you tapped a swatch on an already-open picker.
+    if (picker) {
+        picker.style.opacity = lit ? '' : '0.35';
+        picker.style.pointerEvents = lit ? '' : 'none';
+    }
+    document.querySelectorAll('.led-swatch[data-hex]').forEach((sw) => {
+        sw.setAttribute('aria-pressed', String(sw.dataset.hex === hex.toUpperCase()));
+    });
+}
+
+// The Sequence tab's equivalent of ledPaintColoursDom: patch the step colours
+// the wheel is changing -- the timeline segment and the step editor's swatch --
+// instead of re-rendering, which would rebuild the iro wheel mid-drag.
+function ledPaintSeqColorsDom() {
+    const steps = ledSeqLoad() || [];
+    document.querySelectorAll('.led-seg[data-led-seq-step]').forEach((el) => {
+        const step = steps[Number(el.dataset.ledSeqStep)];
+        if (step) el.style.backgroundImage = `linear-gradient(180deg, ${step.frontColor} 0 50%, ${step.rearColor} 50% 100%)`;
+    });
+    document.querySelectorAll('.led-pick[data-led-seq-pick]').forEach((el) => {
+        const [index, field] = el.dataset.ledSeqPick.split(':');
+        const step = steps[Number(index)];
+        if (step) el.style.backgroundColor = step[field];
+        el.setAttribute('aria-pressed', String(!!ledPickSeq && ledPickSeq.index === Number(index) && ledPickSeq.field === field));
+    });
+}
+
+// Move the wheel to the colour the page now holds. iro fires 'color:change'
+// for a programmatic set and 'input:change' only for user gestures, so this
+// cannot loop back into the edit handler.
+function ledSyncPickerColor() {
+    if (!ledPicker) return;
+    try { ledPicker.color.set(ledColor16ToHex8(ledPickColor16())); } catch (e) { /* picker torn down */ }
+}
+
+// True when the open picker can simply be repainted. Closing or opening it
+// changes what is on the page, so those still re-render.
+function ledPickerStaysPut() {
+    return ledPickerOpen && !!document.querySelector('.led-picker-panel');
 }
 
 function ledUpdateSwatchesDom(hex8) {
@@ -4012,46 +4448,39 @@ function ledUpdateSwatchesDom(hex8) {
     const hx = document.getElementById('led-hex-readout');
     if (sw) sw.style.backgroundColor = hex8;
     if (hx) hx.textContent = hex8.toUpperCase();
-    ledZoneKeys(ledSelectedZone).forEach((k) => {
-        const c = document.querySelector(`[data-led-cell="${k}:${ledSelectedState}"]`);
-        if (c) c.style.backgroundColor = hex8;
-    });
+    // The card swatches are keyed by zone id ('front'/'rear'/'both'), not by
+    // palette key, and a linked edit writes the same colour to both strips --
+    // so the split gradient has to go when a flat colour lands on it.
+    const target = document.querySelector(`[data-led-cell="${ledSelectedZone}:${ledSelectedState}"]`);
+    if (target) {
+        target.style.backgroundImage = '';
+        target.style.backgroundColor = hex8;
+        target.querySelector('.led-pick-off')?.remove();
+    }
 }
 
 // ── LED strip write sequencing ───────────────────────────────────────────────
 // Every write that changes what the strip SHOWS is funnelled through ONE
 // promise chain, so writes land in enqueue order and can never interleave.
 //
-// There is no preview endpoint on this hardware (see the ledStrip block in
-// api.js). The firmware stores ONE palette and renders the bank matching the
-// machine's wake state, so every write here — previewing a colour the user is
-// dragging, and putting the strip back afterwards — is the same
-// `PUT /machine/ledStrip`, differing only in what payload it carries:
-//   * SAME-STATE edit (editing the bank the machine is rendering): PUT the
-//     working palette itself. What gets stored and what gets shown are the
-//     same thing, so there is nothing to undo — this is just a normal edit.
-//   * CROSS-STATE edit (e.g. picking the asleep colour while the machine is
-//     awake): the strip can only show it by writing it into the AWAKE bank,
-//     which is NOT where the user wants it stored. So those writes carry a
-//     composite (ledPreviewComposite → ledLiveWriteState) that shows the
-//     edited colour while leaving the other bank alone, the real edit is only
-//     marked dirty (ledPaletteDirty), and both are settled at the seams below
-//     by one PUT of the true palette.
+// Decaid exposes a live preview (POST /machine/ledStrip/preview), which lights
+// the strips without touching the four stored palette registers. So the two
+// kinds of write here are genuinely different verbs:
+//   * CHOOSING a colour -> preview. Volatile, invisible to GET /ledStrip, and
+//     the only way to show an asleep colour while the machine is awake.
+//   * SAVING -> PUT /machine/ledStrip + commit. The only thing that persists.
+// Every exit seam owes a preview/clear, or the preview stands until the next
+// sleep/wake transition.
 //
-// The seams — switching zone/state, Save, Reset, leaving the page, popstate —
-// all call ledRestoreStrip(), which is the single "put the strip back to what
-// the user actually has" write. Because a deferred cross-state edit and a live
-// preview both resolve to the SAME payload (the working palette), the seam
-// issues exactly one PUT rather than the flush-then-clear pair the old
-// preview-endpoint design needed.
+// Preview state is never read back from the machine: GET /ledStrip is
+// stored-palette-only by design, so what is lit lives in this page's state.
 //
-// NOTE: PUT persists. Every write here is a firmware write, so the coalescing
-// below is not just about flicker — it is what keeps a wheel drag from
-// becoming hundreds of stored writes.
+// Debounced, not because preview costs a stored write -- it does not -- but
+// because on firmware older than Bengle#114 the live registers are not PERM_RW
+// yet, so a drag across the wheel is a flash write per changed frame.
+
 let ledOpChain = Promise.resolve(); // serialized LED I/O; tail never rejected
 let ledPreviewQueued = false;       // a preview op is queued but not yet started
-let ledFlushQueued = false;         // a palette PUT is queued but not yet started
-let ledFlushPromise = Promise.resolve(); // the queued flush, for coalesced awaiters (Save)
 
 function ledEnqueue(op) {
     const p = ledOpChain.then(op);
@@ -4059,103 +4488,61 @@ function ledEnqueue(op) {
     return p;
 }
 
-// A colour that is NOT the stored palette is on the strip, or a queued op is
-// about to put one there — the exit seams must restore in either case or a
-// late op would latch the strip on a preview colour. A queued ledFlushPut is
-// deliberately NOT counted: it only ever carries the true palette (same-state
-// edits), so it already does what a restore would, and counting it would make
-// every seam after an ordinary edit issue a second identical firmware write.
+// A preview colour is on the strip, or a queued op is about to put one there --
+// the exit seams must clear in either case, or a late op would latch the strip
+// on a preview until the next sleep/wake transition.
 const ledPreviewPending = () => ledPreviewActive || ledPreviewQueued;
 
-// Drive the colour the user is looking at onto the strip: edited zones show
-// the bank being edited, every other zone the bank the machine is rendering.
-// Written into the machine's bank (the only bank that shows) while the other
-// bank is carried through untouched, so the half of the palette the user is
-// NOT looking at is never disturbed. Coalesced: at most one op waits in the
-// chain, and it reads the freshest palette/target state only when it runs.
+// Drive the colour the user is looking at onto the strip. Only the zones being
+// edited are named: preview leaves the stored registers alone, so every other
+// zone keeps showing the stored palette without being mentioned. Coalesced --
+// at most one op waits in the chain, and it reads the freshest state when it
+// runs.
 function ledPushPreview() {
     if (ledPreviewQueued) return;
     ledPreviewQueued = true;
     ledEnqueue(async () => {
         ledPreviewQueued = false;
         if (!ledState) return;
-        const machineBank = ledMachinePaletteState();
-        const { front, back } = ledPreviewComposite(
-            ledState, ledZoneKeys(ledSelectedZone), ledSelectedState, machineBank);
+        const payload = ledPreviewPayload(ledState, ledZoneKeys(ledSelectedZone), ledSelectedState);
+        if (!payload) return; // naming no strip is a 400
         try {
-            await setLedStrip(ledLiveWriteState(ledState, front, back, machineBank));
-            ledPreviewActive = true;
-        } catch (e) { /* preview is a nicety — non-fatal */ }
+            // false = this machine is not a Bengle. The category is already
+            // gated on that (settings-tree bengleOnly), so there is nothing to
+            // report; just stop claiming a preview is lit.
+            ledPreviewActive = await previewLedStrip(payload);
+        } catch (e) { /* preview is a nicety -- non-fatal */ }
     });
 }
 
-function ledSchedulePut() {
+function ledSchedulePreview() {
     if (ledPutTimer) clearTimeout(ledPutTimer);
     ledPutTimer = setTimeout(() => {
         ledPutTimer = null;
-        // The user may leave the page inside the debounce window; a late write
-        // would land after the exit seam's clear and latch a preview colour.
+        // The user may leave the page inside the debounce window; a late
+        // preview would land after the exit seam's clear and latch a colour.
         if (activeSettingsCategory !== 'ledstrip') return;
-        if (ledSelectedState === ledMachinePaletteState()) {
-            ledFlushPut(); // same-state: the PUT itself repaints the strip correctly
-        } else {
-            ledPushPreview(); // cross-state: preview only — no PUT between moves
-        }
+        ledPushPreview();
     }, 120);
 }
 
-// Commit an edit gesture (wheel release, preset tap, power toggle).
-// Same-state: PUT the working palette now — what is stored and what is shown
-// are the same colour, so this is just the edit landing.
-// Cross-state: the edit must NOT be written to the bank the machine renders,
-// so mark it dirty and land the final wheel position as one more coalesced
-// preview write; ledRestoreStrip() at the next seam writes the real palette.
+// Commit an edit gesture (wheel release, preset tap, power toggle). The edit
+// lives in ledState and on the strip as a preview; only Save writes it to the
+// machine, which is what the Save/Reset pair on this page has always implied.
 function ledCommitEdit() {
     if (ledPutTimer) { clearTimeout(ledPutTimer); ledPutTimer = null; }
-    // Same late-write guard as ledSchedulePut: with multi-touch, input:end can
+    // Same late-write guard as ledSchedulePreview: with multi-touch, input:end can
     // fire AFTER an exit seam (one finger navigates while another still holds
-    // the wheel) — a late commit would re-write a preview after that seam's
-    // restore and latch it on the strip until the next navigation event.
+    // the wheel) -- a late preview would survive that seam's clear.
     if (activeSettingsCategory !== 'ledstrip') return;
-    if (ledSelectedState === ledMachinePaletteState()) {
-        ledFlushPut();
-    } else {
-        ledPaletteDirty = true;
-        ledPushPreview();
-    }
+    ledPushPreview();
 }
 
-// PUT the working palette. Same-state edit path: the payload IS what the strip
-// should show, so there is nothing to chase it with. Returns a promise that
-// resolves once the write has landed (Save awaits it).
-function ledFlushPut() {
-    if (ledPutTimer) { clearTimeout(ledPutTimer); ledPutTimer = null; }
-    if (!ledState) return Promise.resolve();
-    if (ledFlushQueued) return ledFlushPromise; // the queued op reads fresh state when it runs
-    ledFlushQueued = true;
-    ledFlushPromise = ledEnqueue(async () => {
-        ledFlushQueued = false;
-        if (!ledState) return;
-        ledPaletteDirty = false; // this PUT carries the full current palette
-        ledPreviewActive = false; // ...and it carries it to BOTH banks: nothing is overridden
-        // The front-switch LED can't be set independently — it mirrors the front strip.
-        ledState.frontSwitch = { awake: ledState.frontStrip.awake, sleeping: ledState.frontStrip.sleeping };
-        ledRunNoteStoredPalette(ledState); // a running sequence must restore THIS, not the pre-edit palette
-        try { await setLedStrip(ledState); } catch (e) { /* non-fatal */ }
-    });
-    return ledFlushPromise;
-}
-
-// PUT the working palette, unconditionally. The seam write and the pre-save
-// write are the same operation: whatever the strip is currently showing, this
-// puts the user's real palette (both banks) back on it.
 function ledPutPalette() {
     if (ledPutTimer) { clearTimeout(ledPutTimer); ledPutTimer = null; }
-    if (!ledState) { ledPaletteDirty = false; return Promise.resolve(); }
+    if (!ledState) return Promise.resolve();
     return ledEnqueue(() => {
         if (!ledState) return;
-        ledPaletteDirty = false;
-        ledPreviewActive = false;
         // The front-switch LED can't be set independently — it mirrors the front strip.
         ledState.frontSwitch = { awake: ledState.frontStrip.awake, sleeping: ledState.frontStrip.sleeping };
         ledRunNoteStoredPalette(ledState);
@@ -4163,15 +4550,15 @@ function ledPutPalette() {
     });
 }
 
-// The single exit-seam write: put the strip back to the palette the user
-// actually has. Covers both things a seam has to settle — a deferred
-// cross-state edit and a live preview override — because both resolve to the
-// same payload, so one PUT does the work the old flush-then-clear pair did.
-// No-op when nothing is pending, so calling it at every seam is safe.
+// The single exit seam: end the preview so the strip shows what is actually
+// stored. Unsaved edits stay in ledState -- leaving the picker is not a save,
+// and with a real preview endpoint nothing was written to the machine to undo.
+// No-op when nothing is lit, so calling it at every seam is safe.
 function ledRestoreStrip() {
-    if (!ledPaletteDirty && !ledPreviewPending()) return;
+    if (!ledPreviewPending()) return;
     ledPreviewActive = false;
-    ledPutPalette();
+    if (ledPutTimer) { clearTimeout(ledPutTimer); ledPutTimer = null; }
+    ledEnqueue(() => clearLedStripPreview().catch(() => { /* non-fatal */ }));
 }
 
 // Browser/OS back navigation exits settings through the router's popstate
@@ -4181,7 +4568,7 @@ function ledRestoreStrip() {
 // Same restore as the Cancel/Save seams; it is a no-op when nothing is
 // pending, so firing on every popstate is safe. The settings DOM is being
 // torn down, so no category is active any more — dropping
-// activeSettingsCategory also disarms the late-write guards (ledSchedulePut,
+// activeSettingsCategory also disarms the late-write guards (ledSchedulePreview,
 // ledCommitEdit) and lets the cup-warmer poll self-stop on its next tick.
 // Module-level: registered once, not per initializeSettings call.
 window.addEventListener('popstate', () => {
@@ -4193,40 +4580,112 @@ window.addEventListener('popstate', () => {
 // Switching the edit target (zone or state bank) ends the current preview —
 // the strip returns to the user's real palette until they pick again, which
 // also lands any deferred cross-state edit. One PUT, one strip transition.
-window.ledSelectZone = function(zone) {
-    if (ledSelectedZone !== zone) ledRestoreStrip();
-    ledSelectedZone = zone;
-    if (activeSettingsCategory === 'ledstrip') updateSettingsContentArea('ledstrip');
-};
-window.ledSelectState = function(state) {
-    if (ledSelectedState !== state) ledRestoreStrip();
-    ledSelectedState = state;
-    if (activeSettingsCategory === 'ledstrip') updateSettingsContentArea('ledstrip');
-};
-window.ledSelectCell = function(zoneKey, stateKey) {
-    const zone = zoneKey === 'frontStrip' ? 'front' : zoneKey === 'backStrip' ? 'rear' : 'switch';
+window.ledSelectCell = function(zone, stateKey) {
     if (ledSelectedZone !== zone || ledSelectedState !== stateKey) ledRestoreStrip();
     ledSelectedZone = zone;
     ledSelectedState = stateKey;
+    if (ledPickerStaysPut()) { ledPaintColoursDom(); ledSyncPickerColor(); return; }
     if (activeSettingsCategory === 'ledstrip') updateSettingsContentArea('ledstrip');
 };
-window.ledApplyPreset = function(hex8) {
-    if (!ledState) return;
-    const c16 = ledRgbToColor16(ledHexToRgb(hex8));
-    ledZoneKeys(ledSelectedZone).forEach((k) => {
-        if (!ledState[k]) return;
-        const cur = ledState[k][ledSelectedState];
-        if (c16 === '000000000000' && cur && cur !== '000000000000') ledLastLit[k + ':' + ledSelectedState] = cur;
-        ledState[k][ledSelectedState] = c16;
-    });
+// Tapping a colour is both "edit this one" and "show me the wheel". Tapping
+// the one already open closes it again, so the same control puts the page back
+// the way it was.
+window.ledOpenPicker = function(zone, stateKey) {
+    const same = ledPickerOpen && !ledPickSeq && ledSelectedZone === zone && ledSelectedState === stateKey;
+    ledPickSeq = null;
+    ledPickerOpen = !same;
+    window.ledSelectCell(zone, stateKey);
+};
+// The Sequence tab borrowing the wheel: point it at this step's colour, or
+// let go if it is already on that one (same tap-to-close as the cards).
+window.ledSeqOpenPicker = function(index, field) {
+    const same = ledPickerOpen && ledPickSeq && ledPickSeq.index === index && ledPickSeq.field === field;
+    // The strip is previewing a palette cell, not this step -- end that first.
+    ledRestoreStrip();
+    // Front <-> Rear on an open wheel changes no shape, only which colour the
+    // wheel edits, so patch it like the Static Colours cards do. Re-rendering
+    // here rebuilt the iro wheel -- mounted at natural size, measured, then
+    // counter-scaled -- which is the size flash the user sees.
+    const retarget = !same && !!ledPickSeq && ledPickerStaysPut();
+    ledPickerOpen = !same;
+    ledPickSeq = same ? null : { index, field };
+    if (retarget) { ledPaintSeqColorsDom(); ledPaintColoursDom(); ledSyncPickerColor(); return; }
     if (activeSettingsCategory === 'ledstrip') updateSettingsContentArea('ledstrip');
-    ledCommitEdit();
+};
+window.ledClosePicker = function() {
+    ledPickerOpen = false;
+    ledPickSeq = null;
+    if (activeSettingsCategory === 'ledstrip') updateSettingsContentArea('ledstrip');
+};
+// Linked edits front and rear as one. Any open picker is retargeted rather
+// than left pointing at a card that is no longer on screen.
+window.ledSetLinked = function(checked) {
+    ledLinked = !!checked;
+    ledRestoreStrip();
+    ledSelectedZone = ledLinked ? 'both' : 'front';
+    if (activeSettingsCategory === 'ledstrip') updateSettingsContentArea('ledstrip');
+};
+// Brightness without touching hue. A strip that is fully off has no hue left
+// to scale, so dragging up relights it from the colour it last had (the same
+// memory the Power toggle uses) rather than from an arbitrary white.
+window.ledSetBrightness = function(zone, value) {
+    if (!ledState) return;
+    ledZoneKeys(zone).forEach((k) => {
+        if (!ledState[k]) return;
+        const memory = k + ':awake';
+        const current = ledColor16ToHex8(ledState[k].awake);
+        if (current.toUpperCase() !== '#000000') ledLastLit[memory] = ledState[k].awake;
+        const base = current.toUpperCase() === '#000000'
+            ? ledColor16ToHex8(ledLastLit[memory] || LED_DEFAULT_ON)
+            : current;
+        ledState[k].awake = ledRgbToColor16(ledHexToRgb(ledWithValue(base, value)));
+    });
+    ledPaintBrightnessDom(zone, value);
+    ledSchedulePreview();
+};
+
+// Dragging the slider must not re-render the page under the finger, so the
+// readout and the swatch it describes are patched in place -- the same reason
+// ledSeqPaintActiveStep exists on the other tab.
+function ledPaintBrightnessDom(zone, value) {
+    const card = document.querySelector(`[data-led-cell="${zone}:awake"]`)?.closest('.led-card');
+    const val = card?.querySelector('.led-bright-val');
+    if (val) val.textContent = `${Math.round(Number(value) || 0)}%`;
+    const keys = ledZoneKeys(zone);
+    const hexes = keys.map((k) => ledColor16ToHex8(ledCellColor16(k, 'awake')));
+    const swatch = card?.querySelector(`[data-led-cell="${zone}:awake"]`);
+    if (swatch) {
+        if (hexes.length > 1 && hexes[0] !== hexes[1]) {
+            swatch.style.backgroundImage = `linear-gradient(90deg, ${hexes[0]} 0 50%, ${hexes[1]} 50% 100%)`;
+        } else {
+            swatch.style.backgroundImage = '';
+            swatch.style.backgroundColor = hexes[0];
+        }
+    }
+    if (ledSelectedState === 'awake') ledUpdateSwatchesDom(hexes[0]);
+}
+window.ledApplyPreset = function(hex8) {
+    ledPickWrite(hex8);
+    if (ledPickerStaysPut()) ledPaintColoursDom();
+    else if (activeSettingsCategory === 'ledstrip') updateSettingsContentArea('ledstrip');
+    ledSyncPickerColor();
+    ledPickCommit();
 };
 // Power toggle (Hue-style): Off = black (0,0,0), remembers the last lit colour;
 // On = restore that colour (or a warm-white default). Note the value slider CAN
 // reach black on its own — power is derived from the colour (never stored), so
 // a slider dragged to zero reads as Off on the next full render.
 window.ledSetPower = function(on) {
+    if (ledPickSeq) {
+        const key = `seq:${ledPickSeq.index}:${ledPickSeq.field}`;
+        const cur = ledPickColor16();
+        if (!on && cur !== '000000000000') ledLastLit[key] = cur;
+        ledPickWrite(on ? ledColor16ToHex8(ledLastLit[key] || LED_DEFAULT_ON) : '#000000');
+        if (ledPickerStaysPut()) ledPaintColoursDom();
+        ledSyncPickerColor();
+        ledPickCommit();
+        return;
+    }
     if (!ledState) return;
     ledZoneKeys(ledSelectedZone).forEach((k) => {
         if (!ledState[k]) return;
@@ -4239,7 +4698,9 @@ window.ledSetPower = function(on) {
             ledState[k][ledSelectedState] = ledLastLit[key] || LED_DEFAULT_ON;
         }
     });
-    if (activeSettingsCategory === 'ledstrip') updateSettingsContentArea('ledstrip');
+    if (ledPickerStaysPut()) ledPaintColoursDom();
+    else if (activeSettingsCategory === 'ledstrip') updateSettingsContentArea('ledstrip');
+    ledSyncPickerColor();
     ledCommitEdit();
 };
 // ── Colour step-sequence editor ──────────────────────────────────────────
@@ -4254,21 +4715,70 @@ window.ledSetPower = function(on) {
 // above) and mirrors its state to paint the transport -- ledSeqPaintActiveStep.
 
 function ledSeqEdit(next) {
+    ledSeqDropPicker();
     ledSeqSteps = next;
     ledSeqPersist();
     if (activeSettingsCategory === 'ledstrip') updateSettingsContentArea('ledstrip');
 }
 window.ledSeqAddStep = function() {
-    ledSeqEdit(addStep(ledSeqLoad(), { frontColor: '#FFAA55', rearColor: '#FFAA55' }));
+    ledSeqLoad();
+    // Steps belong to a preset, so the first one on an empty library makes it.
+    if (!ledSeqLibrary.activeId) ledSeqLibraryEdit((lib) => addPreset(lib, {}));
+    const next = addStep(ledSeqLoad(), { frontColor: '#FFAA55', rearColor: '#FFAA55' });
+    // Open the step that was just added -- adding one is a statement of intent
+    // to set its colours, and the timeline alone cannot be typed into.
+    ledSeqSelected = next.length - 1;
+    ledSeqEdit(next);
 };
 window.ledSeqRemoveStep = function(index) {
+    ledSeqSelected = -1;
     ledSeqEdit(removeStep(ledSeqLoad(), index));
 };
-window.ledSeqUpdateStep = function(index, patch) {
-    ledSeqEdit(updateStep(ledSeqLoad(), index, patch));
-};
 window.ledSeqMoveStep = function(index, direction) {
-    ledSeqEdit(moveStep(ledSeqLoad(), index, index + (direction === 'up' ? -1 : 1)));
+    const to = index + (direction === 'up' ? -1 : 1);
+    const steps = ledSeqLoad();
+    if (to >= 0 && to < steps.length) ledSeqSelected = to;
+    ledSeqEdit(moveStep(steps, index, to));
+};
+// Saved sequences. Only the active one plays and only its triggers fire, so
+// switching preset is also what arms a different set of states.
+window.ledSeqSelectPreset = function(id) {
+    ledSeqSelected = -1;
+    ledSeqLibraryEdit((lib) => selectPreset(lib, id));
+    ledRunOnMachineStateChange(currentMachineState);
+};
+window.ledSeqNewPreset = function() {
+    ledSeqLibraryEdit((lib) => addPreset(lib, {}));
+};
+window.ledSeqDeletePreset = function() {
+    const id = ledSeqLibrary.activeId;
+    if (!id) return;
+    ledSeqLibraryEdit((lib) => removePreset(lib, id));
+    ledRunOnMachineStateChange(currentMachineState);
+};
+window.ledSeqRenamePreset = function(name) {
+    const id = ledSeqLibrary.activeId;
+    if (!id) return;
+    ledSeqLibraryEdit((lib) => renamePreset(lib, id, name));
+};
+// The auto-run switch. Off stops a trigger run that is already playing (the
+// runner re-resolves and finds nothing armed) but leaves Play alone, so a
+// sequence can still be built and tested with auto-run off.
+window.ledSeqSetEnabled = function(checked) {
+    ledSeqLibraryEdit((lib) => setSequencesEnabled(lib, !!checked));
+    ledRunOnMachineStateChange(currentMachineState);
+};
+// Tapping a timeline segment opens its editor; tapping the open one closes it.
+window.ledSeqSelectStep = function(index) {
+    ledSeqDropPicker();
+    ledSeqSelected = (ledSeqSelected === index) ? -1 : index;
+    if (activeSettingsCategory === 'ledstrip') updateSettingsContentArea('ledstrip');
+};
+window.ledSeqNudgeDuration = function(index, direction) {
+    const steps = ledSeqLoad();
+    const step = steps[index];
+    if (!step) return;
+    ledSeqEdit(updateStep(steps, index, { durationMs: nudgeStepDuration(step.durationMs, direction) }));
 };
 window.ledSeqSetLoop = function(checked) {
     ledSeqLoop = !!checked;
@@ -4295,8 +4805,15 @@ window.ledSeqToggleTriggerState = function(stateId, enabled) {
 // whichever step is ACTUALLY on the strip, even if a trigger run put it there.
 function ledSeqPaintActiveStep() {
     document.querySelectorAll('[data-led-seq-step]').forEach((el) => {
-        el.classList.toggle('led-seq-step-active', Number(el.dataset.ledSeqStep) === ledSeqRunSnapshot.index);
+        // The playhead: the segment the runner is actually on, patched rather
+        // than re-rendered so playback never rebuilds the page mid-edit.
+        el.classList.toggle('led-seq-playing', Number(el.dataset.ledSeqStep) === ledSeqRunSnapshot.index);
     });
+    // Marking the playing step with an accent stroke fails on a step that IS
+    // that accent, so the bar says it by contrast instead: while something is
+    // playing the rest of the timeline drops back. Driven from a class on the
+    // bar rather than :has(), which older embedded WebViews do not support.
+    document.querySelector('.led-timeline')?.classList.toggle('is-playing', ledSeqRunSnapshot.index >= 0);
     const transport = document.getElementById('led-seq-transport');
     if (transport) {
         const mode = ledSeqIsManualRun() ? 'stop' : 'play';
@@ -4331,36 +4848,53 @@ window.ledSeqToggleRun = function() {
 window.ledSelectTab = function(tabId) {
     if (ledActiveTab === tabId) return;
     ledRestoreStrip();
+    ledSeqDropPicker(); // the wheel belongs to a step that is no longer on screen
     ledActiveTab = tabId;
     if (activeSettingsCategory === 'ledstrip') updateSettingsContentArea('ledstrip');
 };
+// Exiting Settings through the HEADER Save must persist an unsaved palette
+// too: that button is the page-level "save everything" affordance, and with
+// the picker's own Save as the only writer a colour edit was dropped in
+// silence. No-op when nothing changed, and never blocks the exit. Cancel and
+// a category switch still discard -- leaving a control is not a save.
+async function ledSaveOnExit() {
+    if (ledState && ledCommitted !== JSON.stringify(ledState)) {
+        try {
+            await ledPutPalette();
+            await commitLedStrip();
+            ledCommitted = JSON.stringify(ledState);
+        } catch (e) { /* non-fatal -- the preview is still cleared below */ }
+    }
+    ledRestoreStrip();
+}
 window.ledSave = async function() {
-    // One PUT of the working palette (which also clears any preview override),
-    // then the contract's persist verb. The PUT is what actually persists --
-    // commitLedStrip is a documented no-op today (see api.js) and is kept only
-    // so the call site still reads as "save" if commit ever regains meaning.
+    // The one write that persists: PUT the working palette, then the contract's
+    // persist verb. Clearing the preview afterwards is what makes the strip show
+    // what was actually stored -- a cross-state edit (an asleep colour picked
+    // while awake) must stop being lit at that point, not linger until the next
+    // sleep/wake transition.
     try {
         await ledPutPalette();
         await commitLedStrip();
+        ledRestoreStrip();
         ledCommitted = JSON.stringify(ledState);
         ui.showToast(getTranslation('Lighting saved'), 2000, 'success');
     } catch (e) { ui.showToast(getTranslation('Failed to save lighting'), 3000, 'error'); }
 };
-// Revert to the palette as it was at the last load or Save, and write it back.
+// Revert to the palette as it was at the last load or Save.
+//
+// Nothing has to be written to get there: choosing a colour only previews, so
+// the machine still holds exactly this palette. Clearing the preview is the
+// whole job -- the strip goes back to the stored colours on its own.
 //
 // This deliberately does NOT use `POST /machine/ledStrip/reset`. That endpoint
-// re-READS the firmware registers; it is not a rollback, and the firmware
-// cannot undo a persisted write (see api.js). Since every edit here is written
-// through immediately, re-reading would just hand back the edits the user is
-// trying to discard -- or, mid-preview, promote a preview colour to "saved".
-// `ledCommitted` is the honest revert target: it is the palette this page
-// loaded from the machine, refreshed on every successful Save.
+// re-READS the firmware registers; it is not a rollback. `ledCommitted` is the
+// honest revert target: the palette this page loaded, refreshed on every Save.
 window.ledReset = function() {
     if (!ledCommitted) return;
     try {
         ledState = ledNormalize(JSON.parse(ledCommitted));
-        ledPaletteDirty = false; // deferred edits are discarded with the rest
-        ledPutPalette();
+        ledRestoreStrip();
         if (activeSettingsCategory === 'ledstrip') updateSettingsContentArea('ledstrip');
         ui.showToast(getTranslation('Lighting reset'), 2000, 'success');
     } catch (e) { ui.showToast(getTranslation('Failed to reset lighting'), 3000, 'error'); }
@@ -4380,8 +4914,9 @@ export function renderHotWaterSettings() {
     }
 
     const hotWaterData = settingsCache.workflow?.hotWaterData || {};
-    const targetTemp = hotWaterData.targetTemperature ?? 75;
-    const volume = hotWaterData.volume ?? 50;
+    // Target temperature and volume are not here: the main-page Hot Water tile
+    // is the editor for both (its two-value pair), and a second set of steppers
+    // on this page was the same number twice.
     const duration = hotWaterData.duration ?? 30;
     const flow = hotWaterData.flow ?? 2.5;
     // Stop-at-weight toggle + its lookahead multiplier — Rea (not workflow) settings.
@@ -4397,77 +4932,13 @@ export function renderHotWaterSettings() {
                 <p class="leading-[1.2]" data-i18n-key="Hot Water Settings">Hot Water Settings</p>
             </div>
 
-            <!-- Hot Water Temperature -->
-            <div class="content-stretch flex flex-col items-start relative w-full">
-                <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
-                    <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--text-primary)] text-[30px]">
-                            <p class="leading-[1.2]" data-i18n-key="Target Temperature (°C)">Target Temperature (°C)</p>
-                            <span class="text-[20px] font-normal opacity-60 text-[var(--text-primary)]">${tempInputValue(50)} – ${tempInputValue(95)} ${tempUnitLabel()}</span>
-                        </div>
-                        <div class="flex gap-[20px] h-[72px] items-center">
-                            <button aria-label="Decrease hot water temperature" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
-                                    onclick="window.flashPlusMinusButton(this); window.adjustHotWaterTemp(-1);">
-                                <svg aria-hidden="true" width="36" height="36" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M10.416 25H39.5827" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </button>
-                            <div class="flex items-center justify-center" style="width: 130px;">
-                                <input type="text" inputmode="numeric" pattern="[0-9]*" id="hotWaterTempInput" class="text-center text-[var(--text-primary)] text-[24px] font-bold bg-transparent border-none w-full"
-                                       value="${tempInputValue(targetTemp)}" step="1" min="${tempInputValue(50)}" max="${tempInputValue(95)}"
-                                       onchange="window.updateHotWaterSetting('targetTemperature', Math.round(window.tempInputToCelsius(this.value)))">
-                                <span class="ml-1 text-[var(--text-primary)] text-[24px] font-bold" aria-hidden="true">${tempUnitLabel()}</span>
-                            </div>
-                            <button aria-label="Increase hot water temperature" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
-                                    onclick="window.flashPlusMinusButton(this); window.adjustHotWaterTemp(1);">
-                                <svg aria-hidden="true" width="36" height="36" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M24.9993 10.4165V39.5832M10.416 24.9998H39.5827" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Hot Water Volume -->
-            <div class="content-stretch flex flex-col items-start relative w-full">
-                <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
-                    <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--text-primary)] text-[30px]">
-                            <p class="leading-[1.2]" data-i18n-key="Volume">Volume</p>
-                            <span class="text-[20px] font-normal opacity-60 text-[var(--text-primary)]">10 – 500 ml</span>
-                        </div>
-                        <div class="flex gap-[20px] h-[72px] items-center">
-                            <button aria-label="Decrease hot water volume" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
-                                    onclick="window.flashPlusMinusButton(this); window.adjustHotWaterVolume(-10);">
-                                <svg aria-hidden="true" width="36" height="36" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M10.416 25H39.5827" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </button>
-                            <div class="flex items-center justify-center" style="width: 130px;">
-                                <input type="text" inputmode="numeric" pattern="[0-9]*" id="hotWaterVolumeInput" class="text-center text-[var(--text-primary)] text-[24px] font-bold bg-transparent border-none w-full"
-                                       value="${volume}" step="10" min="10" max="500"
-                                       onchange="window.updateHotWaterSetting('volume', parseInt(this.value))">
-                                <span class="ml-1 text-[var(--text-primary)] text-[24px] font-bold" aria-hidden="true">ml</span>
-                            </div>
-                            <button aria-label="Increase hot water volume" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
-                                    onclick="window.flashPlusMinusButton(this); window.adjustHotWaterVolume(10);">
-                                <svg aria-hidden="true" width="36" height="36" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M24.9993 10.4165V39.5832M10.416 24.9998H39.5827" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Hot Water Duration -->
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--text-primary)] text-[30px]">
+                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--action-label)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Duration (seconds)">Duration (seconds)</p>
-                            <span class="text-[20px] font-normal opacity-60 text-[var(--text-primary)]">5 – 120 s</span>
+                            ${rangeHint(SETTINGS_NUMPAD_CONFIGS.hotWaterDurationInput.min, SETTINGS_NUMPAD_CONFIGS.hotWaterDurationInput.max, 's', duration)}
                         </div>
                         <div class="flex gap-[20px] h-[72px] items-center">
                             <button aria-label="Decrease hot water duration" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
@@ -4497,9 +4968,9 @@ export function renderHotWaterSettings() {
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--text-primary)] text-[30px]">
+                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--action-label)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Flow">Flow</p>
-                            <span class="text-[20px] font-normal opacity-60 text-[var(--text-primary)]">0.1 – 8.0 ml/s</span>
+                            ${rangeHint(SETTINGS_NUMPAD_CONFIGS.hotWaterFlowInput.min, SETTINGS_NUMPAD_CONFIGS.hotWaterFlowInput.max, 'ml/s', flow, 1)}
                         </div>
                         <div class="flex gap-[20px] h-[72px] items-center">
                             <button aria-label="Decrease hot water flow" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
@@ -4528,7 +4999,7 @@ export function renderHotWaterSettings() {
             <!-- Stop Hot Water at Weight (needs a scale connected to take effect) -->
             <div class="flex items-center justify-between gap-[24px] w-full">
                 <div class="flex flex-col gap-[4px]">
-                    <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--text-primary)] text-[30px]">
+                    <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--action-label)] text-[30px]">
                         <p class="leading-[1.2]" data-i18n-key="Stop at Weight">Stop at Weight</p>
                         <span class="text-[20px] font-normal opacity-60 text-[var(--text-primary)]" data-i18n-key="Requires a connected scale">Requires a connected scale</span>
                     </div>
@@ -4539,7 +5010,7 @@ export function renderHotWaterSettings() {
                            ${stopHwAtWeight ? 'checked' : ''}
                            ${scaleConnected ? '' : 'disabled'}
                            onchange="window.updateReaSetting('stopHotWaterAtWeight', this.checked)">
-                    <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                    <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                     <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
                 </label>
             </div>
@@ -4548,9 +5019,9 @@ export function renderHotWaterSettings() {
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--text-primary)] text-[30px]">
+                        <div class="flex items-baseline gap-[14px] font-['Inter:Bold',sans-serif] font-bold leading-[0] not-italic relative text-[var(--action-label)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Flow Multiplier">Flow Multiplier</p>
-                            <span class="text-[20px] font-normal opacity-60 text-[var(--text-primary)]">Lookahead for stop-at-weight</span>
+                            <span class="text-[20px] font-normal opacity-60 text-[var(--text-primary)]" data-i18n-key="Higher stops the water sooner">Higher stops the water sooner</span>
                         </div>
                         <div class="flex gap-[20px] h-[72px] items-center">
                             <button aria-label="Decrease hot water flow multiplier" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
@@ -4563,7 +5034,6 @@ export function renderHotWaterSettings() {
                                 <input type="text" inputmode="decimal" id="hotWaterFlowMultiplierInput" class="text-center text-[var(--text-primary)] text-[24px] font-bold bg-transparent border-none w-full"
                                        value="${hwFlowMult}" step="0.05" min="0"
                                        onchange="window.updateReaSetting('hotWaterFlowMultiplier', parseFloat(this.value))">
-                                <span class="ml-1 text-nowrap text-[var(--text-primary)] text-[24px] font-bold" aria-hidden="true">s</span>
                             </div>
                             <button aria-label="Increase hot water flow multiplier" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
                                     onclick="window.flashPlusMinusButton(this); window.adjustHotWaterFlowMultiplier(0.05);">
@@ -4600,11 +5070,11 @@ export function renderWaterTankSettings() {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <div class="content-stretch flex flex-col gap-[20px] items-center relative w-full">
-                <div class="border border-[#c9c9c9] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px]">
+                <div class="border border-[var(--border-primary)] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px]">
                     <div class="content-stretch flex items-center relative shrink-0">
                         <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.2] not-italic relative shrink-0 text-[var(--text-primary)] text-[30px]" data-i18n-key="Tank Temperature (°c)">
                             Tank Temperature (°c)
@@ -4637,7 +5107,7 @@ export function renderWaterTankSettings() {
                     </p>
                 </div>
 
-                <div class="border border-[#c9c9c9] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px]">
+                <div class="border border-[var(--border-primary)] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px]">
                     <div class="content-stretch flex items-center relative shrink-0">
                         <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.2] not-italic relative shrink-0 text-[var(--text-primary)] text-[30px]" data-i18n-key="Water level">
                             Water level
@@ -4670,7 +5140,7 @@ export function renderWaterTankSettings() {
                     </p>
                 </div>
 
-                <div class="border border-[#c9c9c9] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px]">
+                <div class="border border-[var(--border-primary)] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px]">
                     <div class="content-stretch flex items-center relative shrink-0">
                         <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.2] not-italic relative shrink-0 text-[var(--text-primary)] text-[30px]" data-i18n-key="Measurement Units">
                             Measurement Units
@@ -4678,13 +5148,13 @@ export function renderWaterTankSettings() {
                     </div>
                     <div class="flex items-center gap-[8px]" role="group" aria-label="Water tank display unit">
                         <button class="h-[80px] w-[200px] rounded-[10px] font-['Inter:Bold',sans-serif] font-bold text-[26px] flex items-center justify-center cursor-pointer transition-colors duration-200
-                            ${getWaterTankUnit() === 'mm' ? 'bg-[var(--mimoja-blue)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
+                            ${getWaterTankUnit() === 'mm' ? 'bg-[var(--button-primary-bg)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
                             aria-pressed="${getWaterTankUnit() === 'mm'}"
                             onclick="window.setWaterTankUnit('mm')" data-i18n-key="mm">
                             mm
                         </button>
                         <button class="h-[80px] w-[200px] rounded-[10px] font-['Inter:Bold',sans-serif] font-bold text-[26px] flex items-center justify-center cursor-pointer transition-colors duration-200
-                            ${getWaterTankUnit() === 'ml' ? 'bg-[var(--mimoja-blue)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
+                            ${getWaterTankUnit() === 'ml' ? 'bg-[var(--button-primary-bg)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
                             aria-pressed="${getWaterTankUnit() === 'ml'}"
                             onclick="window.setWaterTankUnit('ml')" data-i18n-key="mL">
                             mL
@@ -4732,11 +5202,11 @@ export function renderQuickAdjustmentsSettings() {
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Flow Multiplier">Flow Multiplier</p>
                         </div>
                         <div class="flex items-center gap-4">
-                            <input type="number" class="bg-[var(--box-color)] border-2 border-[#385a92] h-[72px] rounded-[72px] w-[160px] text-[var(--text-primary)] text-[26px] font-bold text-center" value="1.0" step="0.1">
+                            <input type="number" class="bg-[var(--box-color)] border-2 border-[var(--mimoja-blue-v2)] h-[72px] rounded-[72px] w-[160px] text-[var(--text-primary)] text-[26px] font-bold text-center" value="1.0" step="0.1">
                         </div>
                     </div>
                     <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] w-full" data-i18n-key="Adjust the flow multiplier for shot timing">
@@ -4747,17 +5217,17 @@ export function renderQuickAdjustmentsSettings() {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Steam">Steam</p>
                         </div>
                         <div class="flex items-center gap-4">
-                            <input type="number" class="bg-[var(--box-color)] border-2 border-[#385a92] h-[72px] rounded-[72px] w-[160px] text-[var(--text-primary)] text-[26px] font-bold text-center" value="120" step="1">
+                            <input type="number" class="bg-[var(--box-color)] border-2 border-[var(--mimoja-blue-v2)] h-[72px] rounded-[72px] w-[160px] text-[var(--text-primary)] text-[26px] font-bold text-center" value="120" step="1">
                         </div>
                     </div>
                     <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] w-full">
@@ -4768,17 +5238,17 @@ export function renderQuickAdjustmentsSettings() {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Water">Water</p>
                         </div>
                         <div class="flex items-center gap-4">
-                            <input type="number" class="bg-[var(--box-color)] border-2 border-[#385a92] h-[72px] rounded-[72px] w-[160px] text-[var(--text-primary)] text-[26px] font-bold text-center" value="80" step="1">
+                            <input type="number" class="bg-[var(--box-color)] border-2 border-[var(--mimoja-blue-v2)] h-[72px] rounded-[72px] w-[160px] text-[var(--text-primary)] text-[26px] font-bold text-center" value="80" step="1">
                         </div>
                     </div>
                     <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] w-full">
@@ -4789,17 +5259,17 @@ export function renderQuickAdjustmentsSettings() {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Limit">Limit</p>
                         </div>
                         <div class="flex items-center gap-4">
-                            <input type="number" class="bg-[var(--box-color)] border-2 border-[#385a92] h-[72px] rounded-[72px] w-[160px] text-[var(--text-primary)] text-[26px] font-bold text-center" value="30" step="1">
+                            <input type="number" class="bg-[var(--box-color)] border-2 border-[var(--mimoja-blue-v2)] h-[72px] rounded-[72px] w-[160px] text-[var(--text-primary)] text-[26px] font-bold text-center" value="30" step="1">
                         </div>
                     </div>
                     <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] w-full" data-i18n-key="Set brewing time limit">
@@ -4867,7 +5337,7 @@ function calStepIndicator() {
     for (let i = 1; i <= 4; i++) {
         const isDone = calDone[i] || i < calStep;
         const isActive = i === calStep;
-        const dotBg = isDone ? '#0ca581' : (isActive ? '#385a92' : 'var(--button-grey)');
+        const dotBg = isDone ? '#0ca581' : (isActive ? 'var(--button-primary-bg)' : 'var(--button-grey)');
         const dotColor = (isDone || isActive) ? '#ffffff' : '#959595';
         dots += `<div class="rounded-full flex items-center justify-center text-[22px] font-bold shrink-0" style="width:44px;height:44px;background:${dotBg};color:${dotColor}">${isDone ? '&#10003;' : i}</div>`;
         if (i < 4) dots += `<div class="shrink-0" style="width:40px;height:3px;background:${i < calStep ? '#0ca581' : 'var(--button-grey)'}"></div>`;
@@ -4877,9 +5347,9 @@ function calStepIndicator() {
         <p class="text-center text-[24px] text-[#959595] w-full">Step ${calStep} of 4 &middot; ${labels[calStep - 1]}</p>`;
 }
 
-const CAL_PRIMARY_BTN = "bg-[#385a92] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold";
-const CAL_SECONDARY_BTN = "h-[72px] px-[48px] rounded-[72px] text-[24px] font-bold bg-[var(--box-color)] border-2 border-[#385a92] text-[var(--text-primary)]";
-const CAL_CARD = "border border-[#c9c9c9] border-solid content-stretch flex flex-col gap-[30px] items-center px-[60px] py-[30px] relative shrink-0 max-w-full";
+const CAL_PRIMARY_BTN = "bg-[var(--button-primary-bg)] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold";
+const CAL_SECONDARY_BTN = "h-[72px] px-[48px] rounded-[72px] text-[24px] font-bold bg-[var(--box-color)] border-2 border-[var(--mimoja-blue-v2)] text-[var(--text-primary)]";
+const CAL_CARD = "border border-[var(--border-primary)] border-solid content-stretch flex flex-col gap-[30px] items-center px-[60px] py-[30px] relative shrink-0 max-w-full";
 const CAL_HEADING = "font-['Inter:Semi_Bold',sans-serif] font-semibold leading-[1.2] not-italic text-[var(--text-primary)] text-[30px] text-center";
 const CAL_BODY = "font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic text-[var(--text-primary)] text-[24px] w-full text-center";
 
@@ -4997,7 +5467,7 @@ export function renderLoadCellCalibration() {
                 <p class="leading-[1.2]" data-i18n-key="Load Cell Calibration">Load Cell Calibration</p>
             </div>
             ${calStepIndicator()}
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
             <div class="content-stretch flex flex-col items-center relative w-full">
                 ${body}
             </div>
@@ -5014,10 +5484,10 @@ export function renderCalibFanSettings(settings) {
                 <p class="leading-[1.2]" data-i18n-key="Fan Threshold Settings">Fan Threshold Settings</p>
             </div>
 
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
 
             <div class="content-stretch flex flex-col items-center relative w-full">
-                <div class="border border-[#c9c9c9] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px]">
+                <div class="border border-[var(--border-primary)] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px]">
                     <div class="content-stretch flex items-center relative shrink-0">
                         <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.2] not-italic relative shrink-0 text-[var(--text-primary)] text-[30px]" data-i18n-key="Fan Threshold">
                             Fan Threshold
@@ -5063,15 +5533,15 @@ export function renderCalibDefaultLoadSettings() {
                 <p class="leading-[1.2]">${getTranslation('Default Load Settings')}</p>
             </div>
 
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
 
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]">${getTranslation('Default Load Settings')}</p>
                         </div>
-                        <button class="bg-[#385a92] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold"
+                        <button class="bg-[var(--button-primary-bg)] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold"
                                 onclick="window.resetDe1Settings()" data-i18n-key="Reset">
                             Reset
                         </button>
@@ -5094,7 +5564,7 @@ export function renderCalibRefillKitSettings() {
     ];
     const buttons = options.map(o => {
         const active = current === o.value;
-        return `<button class="h-[72px] px-[36px] rounded-[72px] text-[24px] font-bold ${active ? 'bg-[#385a92] text-white' : 'bg-[var(--box-color)] border-2 border-[#385a92] text-[var(--text-primary)]'}"
+        return `<button class="h-[72px] px-[36px] rounded-[72px] text-[24px] font-bold ${active ? 'bg-[var(--button-primary-bg)] text-white' : 'bg-[var(--box-color)] border-2 border-[var(--mimoja-blue-v2)] text-[var(--text-primary)]'}"
                         onclick="window.updateDe1AdvancedSetting('refillKitSetting', ${o.value})" data-i18n-key="${o.label}">${o.label}</button>`;
     }).join('');
     return `
@@ -5103,7 +5573,7 @@ export function renderCalibRefillKitSettings() {
                 <p class="leading-[1.2]" data-i18n-key="Refill Kit">Refill Kit</p>
             </div>
 
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
 
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
@@ -5131,7 +5601,7 @@ export function renderCalibVoltageSettings() {
     ];
     const buttons = options.map(o => {
         const active = current === o.value;
-        return `<button class="h-[72px] px-[48px] rounded-[72px] text-[24px] font-bold ${active ? 'bg-[#385a92] text-white' : 'bg-[var(--box-color)] border-2 border-[#385a92] text-[#385a92]'}"
+        return `<button class="h-[72px] px-[48px] rounded-[72px] text-[24px] font-bold ${active ? 'bg-[var(--button-primary-bg)] text-white' : 'bg-[var(--box-color)] border-2 border-[var(--mimoja-blue-v2)] text-[var(--mimoja-blue-v2)]'}"
                         onclick="window.updateHeaterVoltage(${o.value})">${o.label}</button>`;
     }).join('');
     const unsetNote = current === -1 ? `<p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-secondary)] text-[22px] w-full">No voltage set yet — select your mains voltage.</p>` : '';
@@ -5141,12 +5611,12 @@ export function renderCalibVoltageSettings() {
                 <p class="leading-[1.2]" data-i18n-key="Voltage">Voltage</p>
             </div>
 
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
 
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Voltage">Voltage</p>
                         </div>
                         <div class="flex items-center gap-[12px]">${buttons}</div>
@@ -5165,25 +5635,68 @@ export function renderCalibVoltageSettings() {
 }
 
 
+// Values to switch the steam heater back on to. Captured when it goes off (the
+// workflow then holds 0 for both), so the steppers keep showing real numbers
+// and switching on returns to them. Seeded from the shared last-* keys on first
+// render, so an app that boots with steam already off still knows them.
+let lastEnabledSteamCalibTemp = null;
+let lastEnabledSteamDuration = null;
+let rememberedSteamSeeded = false;
+
+async function seedRememberedSteamValues() {
+    if (rememberedSteamSeeded) return;
+    rememberedSteamSeeded = true;
+    try {
+        const [temp, duration] = await Promise.all([
+            readSharedValue(STEAM_TEMP_LAST_VALUE_KEY),
+            readSharedValue(STEAM_DURATION_LAST_VALUE_KEY),
+        ]);
+        if (lastEnabledSteamCalibTemp === null && temp > 0) lastEnabledSteamCalibTemp = temp;
+        if (lastEnabledSteamDuration === null && duration > 0) lastEnabledSteamDuration = duration;
+    } catch (e) { /* defaults cover it */ }
+}
+
+// Shared "Steam heater" on/off row (Quick Adjustments -> Steam and Calibration -> Steam).
+// Carries no page sizing; each page's container sets the width.
+function steamHeaterToggleRow(heaterOn) {
+    return `
+        <div class="flex items-center justify-between gap-[20px] w-full">
+            <p class="font-bold text-[var(--action-label)] text-[30px] leading-[1.2]" data-i18n-key="Steam heater">${getTranslation('Steam heater')}</p>
+            <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
+                <input type="checkbox" class="sr-only peer" id="steamHeaterToggle" ${heaterOn ? 'checked' : ''}
+                       onchange="window.setSteamHeaterOn(this.checked)">
+                <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
+                <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
+            </label>
+        </div>
+    `;
+}
+
 export function renderCalibSteamSettings() {
-    const targetTemp = settingsCache.workflow?.steamSettings?.targetTemperature ?? 155;
+    const workflowTemp = settingsCache.workflow?.steamSettings?.targetTemperature ?? 155;
+    // isSteamOff, not > 0: a target between 1 and the enabled floor is a heater
+    // the machine has switched off, and the toggle must say so (#1079).
+    const heaterOn = !isSteamOff(workflowTemp);
+    const targetTemp = heaterOn ? workflowTemp : (lastEnabledSteamCalibTemp ?? 150);
+    const dim = heaterOn ? '' : 'opacity-40 cursor-not-allowed';
+    const dis = heaterOn ? '' : 'disabled';
     return `
         <div class="content-stretch flex flex-col gap-[60px] items-start relative w-full">
             <div class="flex flex-col font-['Inter:Semi_Bold',sans-serif] font-semibold justify-center leading-[0] min-w-full not-italic relative text-[var(--text-primary)] text-[36px] text-center w-[min-content]">
                 <p class="leading-[1.2]" data-i18n-key="Steam temperature">Steam temperature</p>
             </div>
 
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
 
-            <div class="content-stretch flex flex-col items-center relative w-full">
-                <div class="border border-[#c9c9c9] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px]">
+            <div class="content-stretch flex flex-col items-center gap-[20px] relative w-full">
+                <div class="border border-[var(--border-primary)] border-solid content-stretch flex flex-col gap-[20px] items-center px-[60px] py-[20px] relative shrink-0 w-[590px] ${dim}">
                     <div class="content-stretch flex items-center relative shrink-0">
                         <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.2] not-italic relative shrink-0 text-[var(--text-primary)] text-[30px]" data-i18n-key="Steam temperature">
                             Steam temperature
                         </p>
                     </div>
                     <div class="content-stretch flex gap-[20px] h-[72px] items-center justify-center relative shrink-0 w-full">
-                        <button id="steam-temp-minus" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
+                        <button id="steam-temp-minus" ${dis} class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
                                 onclick="window.flashPlusMinusButton(this); window.adjustSteamCalibTemp(-1);">
                             <svg width="36" height="36" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M10.416 25H39.5827" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
@@ -5191,13 +5704,13 @@ export function renderCalibSteamSettings() {
                         </button>
                         <div class="text-center text-[var(--text-primary)] text-[24px] font-bold bg-transparent border-none flex items-center justify-center"
                              style="width: 130px;">
-                            <input type="text" inputmode="numeric" pattern="[0-9]*" id="steamCalibTempInput" class="text-center text-[var(--text-primary)] text-[24px] font-bold bg-transparent border-none w-full"
+                            <input type="text" inputmode="numeric" pattern="[0-9]*" id="steamCalibTempInput" ${dis} class="text-center text-[var(--text-primary)] text-[24px] font-bold bg-transparent border-none w-full"
                                    value="${tempInputValue(targetTemp)}"
                                    step="1" min="${tempInputValue(135)}" max="${tempInputValue(170)}"
                                    onchange="window.updateSteamSetting('targetTemperature', Math.round(window.tempInputToCelsius(this.value)))">
                             <span class="ml-2 text-nowrap">${tempUnitLabel()}</span>
                         </div>
-                        <button id="steam-temp-plus" class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
+                        <button id="steam-temp-plus" ${dis} class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
                                 onclick="window.flashPlusMinusButton(this); window.adjustSteamCalibTemp(1);">
                             <svg width="36" height="36" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M24.9993 10.4165V39.5832M10.416 24.9998H39.5827" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
@@ -5208,6 +5721,7 @@ export function renderCalibSteamSettings() {
                         Set steam temperature (135-170°C)
                     </p>
                 </div>
+                <div class="w-[590px]">${steamHeaterToggleRow(heaterOn)}</div>
             </div>
         </div>
     `;
@@ -5236,21 +5750,42 @@ let sensorCalWarningAck = false;
 // renders until Ok was clicked. "shown" gates opening; "ack" is still
 // tracked for callers that care whether the user actually clicked through.
 let sensorCalWarningShown = false;
+// The Advanced disclosure's open state. Every render rebuilds the <details>
+// from a template string, so without this it would fold shut mid-typing.
+let sensorCalAdvancedOpen = false;
+
+// Flow estimation calibration (Decaid GET|POST /machine/calibration): an
+// absolute set, unlike the sensor corrections above. null = the machine
+// reported nothing, so the control stays disabled rather than show a fake 1.0.
+let sensorCalFlow = null;
+let sensorCalFlowLoaded = false;
+let sensorCalFlowLoading = false;
+let sensorCalFlowError = '';
+let sensorCalFlowBusy = false;
+// null until the plugin read resolves (or fails, which counts as false).
+let sensorCalFlowManaged = null;
+let sensorCalFlowTimer = null;
+const SENSOR_CAL_FLOW_DEBOUNCE_MS = 600;
 
 // ─── sensor-cal warning visit policy ────────────────────────────────────────
 // Pure state transition, DOM-free on purpose: test/sensor-cal-warning.test.mjs
 // slices this block straight out of the source (see that file's header) so
 // coverage can't silently drift from what actually ships in this legacy file.
-// Events: 'render' (page mount or any later re-render), 'ack' (Ok clicked),
+// Events: 'open' (the Advanced disclosure was opened), 'ack' (Ok clicked),
+// 'cancel' (Cancel clicked -- Advanced closes, so opening it asks again),
 // 'leave' (navigated to a different settings category).
+// 'open' is idempotent until acknowledged: the browser re-fires the details
+// toggle event on every re-render of an open disclosure, and the caller
+// guards showModal() on .open.
 function sensorCalWarningNextState(state, event) {
     switch (event) {
-        case 'render':
-            return state.shown
+        case 'open':
+            return state.ack
                 ? { state, open: false }
-                : { state: { shown: true, ack: state.ack }, open: true };
+                : { state: { shown: true, ack: false }, open: true };
         case 'ack':
             return { state: { shown: state.shown, ack: true }, open: false };
+        case 'cancel':
         case 'leave':
             return { state: { shown: false, ack: false }, open: false };
         default:
@@ -5261,8 +5796,8 @@ function sensorCalWarningNextState(state, event) {
 
 // ─── sensor-cal warning reopen-after-interruption policy ───────────────────
 // Whether THIS render should (re)open the dialog, combining what
-// sensorCalWarningNextState('render') decided (`open`: true only for the
-// very first render of a visit) with whether the dialog that render is about
+// sensorCalWarningNextState decided (`open`: true only when the Advanced
+// disclosure was just opened) with whether the dialog that render is about
 // to destroy was actually showing when the render started (`wasOpen`, read
 // straight from the browser -- see updateSettingsContentArea, which captures
 // it before contentArea.innerHTML tears the old <dialog> down).
@@ -5360,11 +5895,43 @@ function shouldStartSensorCalLoad({ loaded, loading, error }) {
 }
 // ── end sensor-cal load re-entry policy ─────────────────────────────────────
 
+// Same shape as the sensor read: one attempt, no self-retry on failure (the
+// error clears on Retry or on leaving). A failure here never touches the
+// sensor table's state.
+// Fails open: any plugin read error means "not managed", never an error line.
+async function sensorCalReadFlowManaged() {
+    try {
+        const [plugins, settings] = await Promise.all([getPlugins(), getPluginSettings(AUTO_FLOW_CAL_PLUGIN_ID)]);
+        return isFlowCalPluginManaging(plugins, settings);
+    } catch (error) {
+        logger.warn('Auto Flow Calibration plugin state unavailable:', error);
+        return false;
+    }
+}
+
+async function sensorCalLoadFlow() {
+    if (sensorCalFlowLoaded || sensorCalFlowLoading || sensorCalFlowError) return;
+    sensorCalFlowLoading = true;
+    try {
+        const [reading, managed] = await Promise.all([getMachineCalibration(), sensorCalReadFlowManaged()]);
+        sensorCalFlow = clampFlowMultiplier(reading?.flowMultiplier);
+        sensorCalFlowManaged = managed;
+        sensorCalFlowLoaded = true; // an unusable value leaves the control disabled, without a retry loop
+    } catch (error) {
+        logger.error('Failed to read flow calibration:', error);
+        sensorCalFlowError = error.message;
+    } finally {
+        sensorCalFlowLoading = false;
+        sensorCalRerenderIfVisible();
+    }
+}
+
 async function initSensorCal() {
     // The live column is fed by the snapshot socket, which nobody has opened
     // if the app booted straight onto this page (a reload while in Settings).
     ensureMachineSnapshotSocket();
     sensorCalStartLive();
+    sensorCalLoadFlow();
     if (!shouldStartSensorCalLoad({ loaded: sensorCalLoaded, loading: sensorCalLoading, error: sensorCalLoadError })) return;
     sensorCalLoading = true;
     sensorCalLoadError = '';
@@ -5443,7 +6010,7 @@ export async function warmSensorCalibration() {
     }
 }
 
-const SENSOR_CAL_INPUT = "text-center text-[var(--text-primary)] text-[24px] font-bold bg-transparent border border-[#c9c9c9] rounded-[10px] h-[60px] w-[130px]";
+const SENSOR_CAL_INPUT = "text-center text-[var(--text-primary)] text-[24px] font-bold bg-transparent border border-[var(--border-primary)] rounded-[10px] h-[60px] w-[130px]";
 const SENSOR_CAL_SMALL_BTN = "h-[56px] px-[28px] rounded-[56px] text-[22px] font-bold";
 
 // The live "DE1 reads" column, repainted off the snapshot socket's last
@@ -5531,7 +6098,7 @@ function sensorCalRow(target) {
     }
 
     return `
-        <tr class="border-t border-[#c9c9c9]">
+        <tr class="border-t border-[var(--border-primary)]">
             <td class="py-[20px] pr-[20px] align-middle">
                 <p class="text-[28px] font-bold text-[var(--text-primary)]" data-i18n-key="${target.label}">${target.label}</p>
             </td>
@@ -5544,7 +6111,7 @@ function sensorCalRow(target) {
             <td class="py-[20px] px-[10px] text-center align-middle">
                 <p id="sensor-cal-live-${target.id}" class="text-[24px] text-[var(--text-secondary)]">${sensorCalReadingText(target, live)}</p>
                 ${captured !== null ? `<p class="text-[24px] font-bold text-[var(--text-primary)]">${sensorCalReadingText(target, captured)}</p>` : ''}
-                <button class="${SENSOR_CAL_SMALL_BTN} mt-[10px] bg-[var(--box-color)] border-2 border-[#385a92] text-[var(--text-primary)] ${canCapture ? '' : 'opacity-40'}" ${canCapture ? '' : 'disabled'}
+                <button class="${SENSOR_CAL_SMALL_BTN} mt-[10px] bg-[var(--box-color)] border-2 border-[var(--mimoja-blue-v2)] text-[var(--text-primary)] ${canCapture ? '' : 'opacity-40'}" ${canCapture ? '' : 'disabled'}
                         onclick="window.sensorCalCapture('${target.id}')" data-i18n-key="Capture">Capture</button>
             </td>
             <td class="py-[20px] px-[10px] align-middle">
@@ -5558,9 +6125,9 @@ function sensorCalRow(target) {
             </td>
             <td class="py-[20px] pl-[10px] align-middle">
                 <div class="flex flex-col items-stretch" style="gap:10px">
-                    <button class="${SENSOR_CAL_SMALL_BTN} bg-[#385a92] text-white ${ready ? '' : 'opacity-40'}" ${ready ? '' : 'disabled'}
+                    <button class="${SENSOR_CAL_SMALL_BTN} bg-[var(--button-primary-bg)] text-white ${ready ? '' : 'opacity-40'}" ${ready ? '' : 'disabled'}
                             onclick="window.sensorCalApply('${target.id}')" data-i18n-key="Apply">Apply</button>
-                    <button class="${SENSOR_CAL_SMALL_BTN} bg-[var(--box-color)] border-2 border-[#385a92] text-[var(--text-primary)] ${canRestore ? '' : 'opacity-40'}" ${canRestore ? '' : 'disabled'}
+                    <button class="${SENSOR_CAL_SMALL_BTN} bg-[var(--box-color)] border-2 border-[var(--mimoja-blue-v2)] text-[var(--text-primary)] ${canRestore ? '' : 'opacity-40'}" ${canRestore ? '' : 'disabled'}
                             onclick="window.sensorCalRestorePrevious('${target.id}')" data-i18n-key="Restore">Restore</button>
                 </div>
             </td>
@@ -5579,22 +6146,77 @@ function sensorCalShowWarning() {
 
 function sensorCalWarningModal() {
     return `
-            <dialog id="sensor-cal-warning-modal" class="modal">
+            <dialog id="sensor-cal-warning-modal" class="modal" oncancel="window.sensorCalWarningCancel()">
                 <div class="modal-box bg-[var(--box-color)] max-w-2xl">
                     <h3 class="font-bold text-[28px] text-[var(--text-primary)] mb-2" data-i18n-key="Sensor Calibration">Sensor Calibration</h3>
                     <p class="text-[24px] text-[var(--text-primary)] leading-[1.4] break-words" data-i18n-key="Bad calibration settings might make your espresso machine unuseable.  Only proceed if you have been told to or have read the relevant manual sections and know what you are doing.">Bad calibration settings might make your espresso machine unuseable.  Only proceed if you have been told to or have read the relevant manual sections and know what you are doing.</p>
                     <div class="modal-action">
-                        <button class="border-[var(--mimoja-blue)] text-[var(--mimoja-blue)] h-[62px] rounded-[67.5px] border px-[32px] text-[24px] font-bold transition-colors duration-200 hover:bg-[var(--mimoja-blue)] hover:text-white"
+                        <button class="border-[var(--mimoja-blue-v2)] text-[var(--mimoja-blue-v2)] h-[62px] rounded-[67.5px] border px-[32px] text-[24px] font-bold transition-colors duration-200 hover:bg-[var(--button-primary-bg)] hover:text-white"
                                 onclick="window.sensorCalWarningCancel()" data-i18n-key="Cancel">
                             Cancel
                         </button>
-                        <button class="bg-[#385a92] h-[62px] px-[32px] rounded-[67.5px] text-white text-[24px] font-bold"
+                        <button class="bg-[var(--button-primary-bg)] h-[62px] px-[32px] rounded-[67.5px] text-white text-[24px] font-bold"
                                 onclick="window.sensorCalWarningProceed()" data-i18n-key="Ok">
                             Ok
                         </button>
                     </div>
                 </div>
             </dialog>`;
+}
+
+function sensorCalFlowCard() {
+    const managed = sensorCalFlowManaged === true;
+    const disabled = sensorCalFlow === null || sensorCalFlowManaged === null || managed;
+    const btnState = disabled ? 'disabled style="opacity:0.4"' : '';
+    // While the plugin owns the value, the label and the range line dim with the
+    // controls (same 0.4 as the +/- buttons, inline because app.css is generated
+    // and a new utility class would not be in it). The notice and its button stay
+    // at full strength: the dimmed half is what you cannot touch, the bright half
+    // is why, and where to go instead. The hint is muted by COLOUR rather than a
+    // second opacity, so dimming it here does not compound into near-invisible.
+    const mutedWhenManaged = managed ? 'style="opacity:0.4"' : '';
+    // The range line stays in BOTH states. It says what the number is and what
+    // normal looks like, which is what someone reads a value they cannot change
+    // to find out -- and the plugin's own MinimumMultiplier/MaximumMultiplier are
+    // not these bounds, so this stays the DE1's range either way.
+    const hint = `<p ${mutedWhenManaged} class="text-[20px] font-normal leading-[1.2] text-[var(--text-primary)]" data-i18n-key="Corrects the DE1's own flow estimate. Default is 1.0. Range 0.13 to 2.0.">Corrects the DE1's own flow estimate. Default is 1.0. Range 0.13 to 2.0.</p>`;
+    const notice = managed
+        ? `<p class="text-[20px] font-normal leading-[1.2] text-[var(--text-primary)]" data-i18n-key="Flow calibration is managed automatically by the Auto Flow Calibration plugin.">Flow calibration is managed automatically by the Auto Flow Calibration plugin.</p>
+           <button class="${SENSOR_CAL_SMALL_BTN} bg-[var(--button-primary-bg)] text-white self-start mt-[4px]" data-settings-jump="${escapeHtml(pluginCategoryFor(AUTO_FLOW_CAL_PLUGIN_ID))}" data-i18n-key="Open plugin settings">Open plugin settings</button>`
+        : '';
+    // Laid out like Quick Adjustments > Steam: a full-width row, label and its
+    // supporting lines on the left, the stepper on the right, a rule underneath.
+    // The old fixed 590px bordered card ignored the page's width and floated in
+    // the middle of it, which read as a stray box rather than a setting.
+    return `
+            <div class="content-stretch flex items-center justify-between gap-[24px] relative w-full">
+                <div class="flex flex-col gap-[10px] font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--action-label)] text-[30px]">
+                    <p id="flow-estimation-multiplier-label" ${mutedWhenManaged} class="leading-[1.2]" data-i18n-key="Flow Estimation Calibration Multiplier">Flow Estimation Calibration Multiplier</p>
+                    ${hint}
+                    ${notice}
+                    ${sensorCalFlowError ? `<p class="text-[20px] font-normal leading-[1.2] text-red-500">${escapeHtml(sensorCalFlowError)}</p>` : ''}
+                </div>
+                <div class="flex gap-[20px] h-[72px] items-center shrink-0">
+                    <button id="flow-estimation-mult-minus" aria-label="Decrease flow estimation calibration multiplier" ${btnState} class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
+                            onclick="window.flashPlusMinusButton(this); window.sensorCalFlowAdjust(-1);">
+                        <svg aria-hidden="true" width="36" height="36" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M10.416 25H39.5827" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <div class="flex items-center justify-center" style="width: 130px;">
+                        <input type="text" inputmode="decimal" id="flow-estimation-mult-input" aria-labelledby="flow-estimation-multiplier-label" ${disabled ? 'disabled' : ''} class="text-center text-[var(--text-primary)] text-[24px] font-bold bg-transparent border-none w-full"
+                               value="${sensorCalFlow === null ? '' : sensorCalFlow.toFixed(2)}"
+                               onchange="window.sensorCalFlowInput(this.value)">
+                    </div>
+                    <button id="flow-estimation-mult-plus" aria-label="Increase flow estimation calibration multiplier" ${btnState} class="w-[69px] h-[69px] bg-[var(--button-grey)] rounded-[10px] flex items-center justify-center"
+                            onclick="window.flashPlusMinusButton(this); window.sensorCalFlowAdjust(1);">
+                        <svg aria-hidden="true" width="36" height="36" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M24.9993 10.4165V39.5832M10.416 24.9998H39.5827" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>`;
 }
 
 export function renderSensorCalSettings() {
@@ -5635,9 +6257,17 @@ export function renderSensorCalSettings() {
                 <p class="leading-[1.2]" data-i18n-key="Sensor Calibration">Sensor Calibration</p>
             </div>
 
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
 
-            <div class="w-full">${body}</div>
+            ${sensorCalFlowCard()}
+
+            <details id="sensor-cal-advanced" class="w-full" ${sensorCalAdvancedOpen ? 'open' : ''}
+                     ontoggle="window.sensorCalAdvancedToggle(this.open)">
+                <summary class="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none text-[22px] font-bold text-[var(--text-secondary)] py-[8px]">
+                    <span data-i18n-key="Advanced">Advanced</span> ▾
+                </summary>
+                <div class="w-full pt-[8px]">${body}</div>
+            </details>
             ${sensorCalWarningModal()}
         </div>
     `;
@@ -5648,30 +6278,15 @@ export function renderSensorCalSettings() {
 // For every bundled skin installed from a GitHub release, "Update available"
 // compares the installed version the bridge reports (GET /api/v1/webui/skins ->
 // s.version) against the latest release tag of that skin's own repo. Older
-// installed version => update available. Skins not installed from a GitHub release
-// have no signal and show "Up to date". APP_VERSION is NOT used here — it is a
+// installed version => update available. A skin we have no release tag for --
+// not installed from a GitHub release, never checked, check failed, or GitHub's
+// quota gone -- gets NO badge: claiming "Up to date" off an unknown answer is
+// what decaid #1118 called out. APP_VERSION is NOT used here — it is a
 // hardcoded build marker shown only so dist/preview users know which build runs.
-
-function compareVersions(a, b) {
-    const parse = (v) => {
-        const [core, pre] = String(v || '').trim().replace(/^v/i, '').split('-');
-        return { nums: core.split('.').map((n) => parseInt(n, 10) || 0), pre: pre || '' };
-    };
-    const pa = parse(a), pb = parse(b);
-    const len = Math.max(pa.nums.length, pb.nums.length);
-    for (let i = 0; i < len; i++) {
-        const d = (pa.nums[i] || 0) - (pb.nums[i] || 0);
-        if (d !== 0) return d < 0 ? -1 : 1;
-    }
-    // Equal core: a release outranks a prerelease (1.0.0 > 1.0.0-beta.1).
-    if (pa.pre && !pb.pre) return -1;
-    if (!pa.pre && pb.pre) return 1;
-    if (pa.pre && pb.pre) {
-        const c = pa.pre.localeCompare(pb.pre, undefined, { numeric: true });
-        return c < 0 ? -1 : c > 0 ? 1 : 0;
-    }
-    return 0;
-}
+//
+// The per-repo cooldown lives in src/modules/skin-version.js and is persisted,
+// so re-entering Settings or reloading the page cannot re-spend GitHub's 60/h
+// budget. See that file's header for why the budget matters.
 
 // owner/repo for a skin from the bridge's install metadata, or null when it wasn't
 // installed from a GitHub release. Our own skin falls back to the canonical repo so
@@ -5683,22 +6298,58 @@ function skinRepoSlug(s) {
     return null;
 }
 
-// Fetch each repo's latest release tag once per settings session (deduped by repo),
-// then re-render. Non-fatal per repo: offline / rate-limited / no releases leaves
-// that skin at "Up to date".
+// Cooldown + last-answer cache, read once per page and written back after every
+// check. localStorage, not settingsCache: the cache dies with the settings
+// module, and the whole point is that a reload or a second visit does not get a
+// fresh 60-request budget.
+const RELEASE_STATE_KEY = 'githubReleaseChecks';
+
+function releaseState() {
+    if (!settingsCache.releaseState) {
+        let saved = null;
+        try { saved = JSON.parse(localStorage.getItem(RELEASE_STATE_KEY) || 'null'); } catch (e) { /* private mode / bad JSON */ }
+        settingsCache.releaseState = normalizeReleaseState(saved);
+    }
+    return settingsCache.releaseState;
+}
+
+function saveReleaseState() {
+    try { localStorage.setItem(RELEASE_STATE_KEY, JSON.stringify(settingsCache.releaseState)); } catch (e) { /* non-fatal */ }
+}
+
+// Ask GitHub for a repo's latest release tag, at most once per TTL and never
+// through an active cooldown, then re-render. Non-fatal per repo: a failed or
+// refused check leaves that skin with no badge rather than a false "Up to date".
 function maybeCheckLatestRelease(slug, categories) {
-    const cache = settingsCache.latestReleases || (settingsCache.latestReleases = {});
+    const state = releaseState();
     const inFlight = settingsCache.releaseInFlight || (settingsCache.releaseInFlight = new Set());
-    if (!slug || slug in cache || inFlight.has(slug)) return;
+    if (!slug || inFlight.has(slug) || !shouldCheck(state, slug)) return;
     inFlight.add(slug);
     fetch(`https://api.github.com/repos/${slug}/releases/latest`, {
         headers: { Accept: 'application/vnd.github+json' },
     })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data) => { cache[slug] = data?.tag_name?.trim() || null; })
-        .catch(() => { cache[slug] = null; })
+        .then(async (r) => {
+            if (r.ok) {
+                const data = await r.json().catch(() => null);
+                recordSuccess(state, slug, data?.tag_name?.trim() || null);
+                return;
+            }
+            // 403 with the quota gone, or 429: stop asking for every repo until
+            // GitHub's own reset time, and say so once in the log.
+            if (r.status === 403 || r.status === 429) {
+                recordRateLimit(state, {
+                    reset: r.headers?.get?.('x-ratelimit-reset'),
+                    retryAfter: r.headers?.get?.('retry-after'),
+                });
+                logger.info(`GitHub release check rate-limited (${r.status}); cooling down for ${Math.round(limitRemainingMs(state) / 60000)} min`);
+                return;
+            }
+            recordFailure(state, slug);
+        })
+        .catch(() => { recordFailure(state, slug); })
         .finally(() => {
             inFlight.delete(slug);
+            saveReleaseState();
             // A page can be reached under more than one category id — re-render
             // whichever is active so the freshly-fetched release tag is shown.
             if (categories.includes(activeSettingsCategory)) {
@@ -5735,12 +6386,12 @@ export function renderThemeSettings() {
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Theme">Theme</p>
                         </div>
                         <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
                             <input type="checkbox" id="theme-toggle" class="sr-only peer">
-                            <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                            <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                             <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
                         </label>
                     </div>
@@ -5762,13 +6413,14 @@ export function renderSkinSettings() {
     maybeCheckLatestReleases();
 
     // Per-skin update badge: each skin installed from a GitHub release is compared
-    // against the latest release tag of its own repo. Skins without a GitHub-release
-    // source (or whose release we couldn't fetch) show "Up to date".
-    const releases = settingsCache.latestReleases || {};
+    // against the latest release tag of its own repo. No tag and no installed
+    // version means no answer, and no answer means no badge -- the same rule the
+    // Decaid app-update block below follows.
+    const state = releaseState();
     const skinBadge = (s, isActive) => {
-        const slug = skinRepoSlug(s);
-        const latest = slug ? releases[slug] : null;
-        const needsUpdate = !!latest && !!s.version && compareVersions(s.version, latest) < 0;
+        const { tag: latest, known } = getTag(state, skinRepoSlug(s));
+        if (!known || !s.version) return '';
+        const needsUpdate = compareVersions(s.version, latest) < 0;
         const base = 'text-[16px] font-semibold px-[8px] py-[2px] rounded-full';
         if (isActive) return needsUpdate
             ? `<span class="${base} bg-white/20 text-white" data-i18n-key="Update available">Update available</span>`
@@ -5803,8 +6455,8 @@ export function renderSkinSettings() {
                             ${isActive ? 'disabled' : ''}
                             class="relative flex flex-col items-start justify-between gap-[10px] px-[22px] py-[18px] rounded-[14px] border-2 text-left transition-colors duration-150
                                 ${isActive
-                                    ? 'bg-[#385a92] border-[#385a92] text-white cursor-default'
-                                    : 'bg-[var(--box-color)] border-[var(--profile-button-outline-color)] text-[var(--text-primary)] cursor-pointer hover:border-[#385a92]'}">
+                                    ? 'bg-[var(--button-primary-bg)] border-[var(--mimoja-blue-v2)] text-white cursor-default'
+                                    : 'bg-[var(--box-color)] border-[var(--profile-button-outline-color)] text-[var(--text-primary)] cursor-pointer hover:border-[var(--mimoja-blue-v2)]'}">
                             <div class="flex items-start justify-between w-full gap-2">
                                 <span class="font-['Inter:Bold',sans-serif] font-bold text-[24px] leading-tight">${getTranslation(s.i18nKey || s.name)}</span>
                                 ${isActive ? `<span class="text-[14px] font-bold tracking-widest uppercase px-[10px] py-[4px] rounded-full bg-white bg-opacity-20 text-white shrink-0" data-i18n-key="Active">Active</span>` : ''}
@@ -5822,10 +6474,10 @@ export function renderSkinSettings() {
             <div class="content-stretch flex flex-col items-start relative w-full">
                 <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
                     <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]">${skinUpdateCheckText()}</p>
                         </div>
-                        <button class="bg-[#385a92] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold"
+                        <button class="bg-[var(--button-primary-bg)] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold"
                                 onclick="window.updateSkin()" data-i18n-key="Check">
                             Check
                         </button>
@@ -5877,14 +6529,14 @@ export function renderLanguageSettings() {
             <div class="flex flex-col font-['Inter:Semi_Bold',sans-serif] font-semibold justify-center leading-[0] not-italic relative text-[var(--text-primary)] text-[36px] text-center w-full">
                 <p class="leading-[1.2]" data-i18n-key="Language Settings">Language Settings</p>
             </div>
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
             <div class="flex flex-col items-start relative w-full max-w-full">
                 <div class="flex flex-col gap-[30px] items-start relative w-full max-w-full">
                     <div class="flex items-center justify-between relative w-full max-w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                             <p class="leading-[1.2]" data-i18n-key="Display Language">Display Language</p>
                         </div>
-                        <select id="language-switcher" class="bg-[#385a92] border-2 border-[#385a92] border-solid h-[62.88px] rounded-[2617.374px] w-[250px] text-white text-[24px] p-2 max-w-[250px]">
+                        <select id="language-switcher" class="bg-[var(--button-primary-bg)] border-2 border-[var(--mimoja-blue-v2)] border-solid h-[62.88px] rounded-[2617.374px] w-[250px] text-white text-[24px] p-2 max-w-[250px]">
                             <option data-i18n-key="Loading...">Loading...</option>
                         </select>
                     </div>
@@ -5958,7 +6610,7 @@ function renderPluginPage(pluginId) {
         <div class="content-stretch flex flex-col gap-[40px] items-start relative w-full">
             <div id="plugin-page-container" class="flex flex-col gap-[40px] w-full" data-plugin-page="${escapeHtml(pluginId)}">
                 <div class="flex items-center justify-center w-full py-[40px]">
-                    <span class="loading loading-spinner loading-lg text-[#385a92]"></span>
+                    <span class="loading loading-spinner loading-lg text-[var(--mimoja-blue-v2)]"></span>
                 </div>
             </div>
         </div>
@@ -5984,7 +6636,7 @@ export function renderPluginManagerSettings() {
 
             <div id="plugin-list-container" class="flex flex-col gap-[0px] w-full">
                 <div class="flex items-center justify-center w-full py-[40px]">
-                    <span class="loading loading-spinner loading-lg text-[#385a92]"></span>
+                    <span class="loading loading-spinner loading-lg text-[var(--mimoja-blue-v2)]"></span>
                 </div>
             </div>
         </div>
@@ -6029,7 +6681,7 @@ export function renderShotUploadSettings() {
                      below stay disabled until the account one says linked. -->
                 <div id="shotupload-account" class="w-full">
                     <div class="flex items-center justify-center w-full py-[20px]">
-                        <span class="loading loading-spinner loading-lg text-[#385a92]"></span>
+                        <span class="loading loading-spinner loading-lg text-[var(--mimoja-blue-v2)]"></span>
                     </div>
                 </div>
 
@@ -6037,7 +6689,7 @@ export function renderShotUploadSettings() {
                 <div id="shotupload-controls" class="content-stretch flex flex-col gap-[30px] items-start relative w-full"></div>
 
                 <div class="flex items-center gap-[14px] flex-wrap w-full">
-                    <button id="shotupload-upload-now" class="bg-[#385a92] h-[56px] px-[28px] rounded-[64px] text-white text-[22px] font-bold" data-i18n-key="Upload latest shot">Upload latest shot</button>
+                    <button id="shotupload-upload-now" class="bg-[var(--button-primary-bg)] h-[56px] px-[28px] rounded-[64px] text-white text-[22px] font-bold" data-i18n-key="Upload latest shot">Upload latest shot</button>
                     <span id="shotupload-status" class="text-[20px] text-[var(--text-primary)] opacity-60"></span>
                 </div>
             </div>
@@ -6080,6 +6732,7 @@ export function pluginSecureIsSet(value) {
 // `idPrefix` exists because more than one page renders a plugin's schema now
 // (Shot Uploader, Print The Shot); the ids have to stay distinct per page.
 export function renderPluginSettingControl(key, schema, idPrefix = 'shotupload') {
+    if (!isPluginSettingVisible(schema)) return '';
     const id = `${idPrefix}-setting-${key}`;
     const label = escapeHtml(getTranslation(pluginSettingDisplayLabel(key, schema)));
     // One weight for every setting name on the page, including the plugin's own
@@ -6092,7 +6745,7 @@ export function renderPluginSettingControl(key, schema, idPrefix = 'shotupload')
     const description = schema?.description
         ? `<span class="font-['Inter:Regular',sans-serif] leading-[1.4] text-[var(--text-primary)] opacity-70 text-[22px]" data-i18n-key="${escapeHtml(schema.description)}">${escapeHtml(getTranslation(schema.description))}</span>`
         : '';
-    const inputClass = 'p-3 rounded-lg border border-[var(--border-color)] bg-[var(--profile-button-background-color)] text-[var(--text-primary)] text-[24px] focus:outline-none focus:ring-2 focus:ring-[var(--mimoja-blue)]';
+    const inputClass = 'p-3 rounded-lg border border-[var(--border-color)] bg-[var(--profile-button-background-color)] text-[var(--text-primary)] text-[24px] focus:outline-none focus:ring-2 focus:ring-[var(--mimoja-blue-v2)]';
 
     if (schema?.type === 'boolean') {
         return `
@@ -6103,7 +6756,7 @@ export function renderPluginSettingControl(key, schema, idPrefix = 'shotupload')
                 </div>
                 <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
                     <input type="checkbox" id="${id}" data-setting-key="${escapeHtml(key)}" data-setting-type="boolean" class="sr-only peer">
-                    <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                    <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                     <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
                 </label>
             </div>`;
@@ -6267,7 +6920,7 @@ function setupShotUploadListeners() {
 
     const linkedBadge = `
         <div class="flex items-center p-[20px] rounded-[14px] bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] gap-[14px]">
-            <div class="w-[40px] h-[40px] rounded-full bg-[#385a92] flex items-center justify-center text-white text-[18px] font-bold">D</div>
+            <div class="w-[40px] h-[40px] rounded-full bg-[var(--button-primary-bg)] flex items-center justify-center text-white text-[18px] font-bold">D</div>
             <div>
                 <p class="text-[20px] font-semibold text-[var(--text-primary)]" data-i18n-key="Decent account linked">Decent account linked</p>
             </div>
@@ -6352,11 +7005,11 @@ function setupShotUploadListeners() {
             return;
         }
         // The page can be left while those awaits are in flight, which drops the
-        // form -- same hazard loadVisualizerSettings guards against.
+        // form -- an async load must not paint a page that is gone.
         if (!document.getElementById('shotupload-controls')) return;
 
         const schema = plugin.settings && typeof plugin.settings === 'object' ? plugin.settings : {};
-        const keys = Object.keys(schema);
+        const keys = Object.keys(schema).filter(key => isPluginSettingVisible(schema[key]));
         const controls = keys.map(key => {
             const html = renderPluginSettingControl(key, schema[key]);
             if (!html) logger.warn(`Shot upload: no control for setting ${key} of type ${schema[key]?.type}`);
@@ -6401,95 +7054,6 @@ function setupShotUploadListeners() {
             this.disabled = false;
         });
     })();
-}
-
-// Render extensions settings
-export function renderExtensionsSettings() {
-    // Return the HTML template
-    const template = `
-        <div class="content-stretch flex flex-col gap-[60px] items-start relative w-full">
-            <div class="flex flex-col font-['Inter:Semi_Bold',sans-serif] font-semibold justify-center leading-[0] min-w-full not-italic relative text-[var(--text-primary)] text-[36px] text-center w-[min-content]">
-                <p class="leading-[1.2]" data-i18n-key="Extensions Settings">Extensions Settings</p>
-            </div>
-
-            <div class="content-stretch flex flex-col items-start relative w-full">
-                <div class="content-stretch flex flex-col gap-[30px] items-start relative w-full">
-                    <div class="content-stretch flex items-center justify-between relative w-full">
-                        <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
-                            <p class="leading-[1.2]" data-i18n-key="Visualizer">Visualizer</p>
-                             <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic relative text-[var(--text-primary)] text-[24px] w-full" data-i18n-key="Upload shots to visualizer.coffee">
-                        Upload shots to visualizer.coffee
-                    </p>
-                        </div>
-                        <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
-                            <input type="checkbox" id="visualizer-enabled" class="sr-only peer">
-                            <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
-                            <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
-                        </label>
-                    </div>
-
-                    <div class="justify-between grid-cols-4 mt-2 w-full">
-                        <div id="visualizer-form-container" class="w-full mt-6">
-                            <div class="grid grid-cols-4">
-                                <div class="col-span-3 flex flex-col gap-6">
-                                    <div class="flex flex-col gap-2">
-                                        <label for="visualizer-username" class="text-[var(--text-primary)] text-[24px]" data-i18n-key="Username:">Username:</label>
-                                        <input type="text" id="visualizer-username" class="w-full max-w-[500px] p-3 rounded-lg border border-[var(--border-color)] bg-[var(--profile-button-background-color)] text-[var(--text-primary)] text-[24px] focus:outline-none focus:ring-2 focus:ring-[var(--mimoja-blue)]" placeholder="Enter your Visualizer username">
-                                    </div>
-                                    <div class="flex flex-col gap-2">
-                                        <label for="visualizer-password" class="text-[var(--text-primary)] text-[24px]" data-i18n-key="Password:">Password:</label>
-                                        <input type="password" id="visualizer-password" class="w-full max-w-[500px] p-3 rounded-lg border border-[var(--border-color)] bg-[var(--profile-button-background-color)] text-[var(--text-primary)] text-[24px] focus:outline-none focus:ring-2 focus:ring-[var(--mimoja-blue)]" placeholder="Enter your Visualizer password">
-                                    </div>
-                                    <div class="flex items-center justify-between gap-4 max-w-[500px]">
-                                        <div class="flex flex-col">
-                                            <label for="visualizer-auto-upload" class="text-[var(--text-primary)] text-[24px]" data-i18n-key="Auto-upload shots to Visualizer">Auto-upload shots to Visualizer</label>
-                                            <p class="text-[var(--text-primary)] text-[20px]" data-i18n-key="Off: long-press the shot history panel to upload a shot yourself.">Off: long-press the shot history panel to upload a shot yourself.</p>
-                                        </div>
-                                        <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
-                                            <input type="checkbox" id="visualizer-auto-upload" class="sr-only peer">
-                                            <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
-                                            <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
-                                        </label>
-                                    </div>
-                                    <div class="flex items-center gap-4">
-                                        <label for="visualizer-min-duration" class="text-[var(--text-primary)] text-[24px]" data-i18n-key="Minimum Shot Duration (seconds):">Minimum Shot Duration (seconds):</label>
-                                        <input type="number" id="visualizer-min-duration" class="w-24 p-3 rounded-lg border border-[var(--border-color)] bg-[var(--profile-button-background-color)] text-[var(--text-primary)] text-[24px] focus:outline-none focus:ring-2 focus:ring-[var(--mimoja-blue)]" min="1" value="5">
-                                    </div>
-                                </div>
-                                <div class="col-span-1 col-end-5 flex justify-end">
-                                    <button id="save-visualizer-credentials" class=" w-[150px] h-[50px] pt-3 pb-[15px] border border-solid border-[var(--mimoja-blue)] text-[var(--profile-button-text-color)] rounded-[22.5px]">
-                                        Save Credentials
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    </div>
-
-                   
-
-                    
-                </div>
-            </div>
-
-            
-        </div>
-    `;
-
-    // After returning the template, set up the event listeners
-    setTimeout(setupVisualizerEventListeners, 0);
-
-    return template;
-}
-
-// Decaid routes /api/v1/plugins/<id>/<endpoint> from the manifest's api
-// declarations, so a plugin's page is only real when the manifest declares an
-// http endpoint named "ui" -- anything else 404s. Module scope because both the
-// Plugins list and the Print The Shot page link to one.
-function pluginUiUrl(plugin) {
-    const endpoints = Array.isArray(plugin?.api) ? plugin.api : [];
-    const hasUi = endpoints.some(e => e?.type === 'http' && e?.id === 'ui');
-    return hasUi ? `${API_BASE_URL}/plugins/${encodeURIComponent(plugin.id)}/ui` : null;
 }
 
 // Some plugins append their own ui URL to the end of their description
@@ -6557,7 +7121,7 @@ function renderDye2Extra() {
             </div>
             <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
                 <input type="checkbox" id="dye2-enabled" class="sr-only peer">
-                <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                 <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
             </label>
         </div>`;
@@ -6619,7 +7183,7 @@ function setupDye2Extra(cardEl, refreshVersion) {
 function renderPluginVersionInfo(el, pluginId, info, override, { checking = false } = {}) {
     if (!el) return null;
     const button = (id, label) =>
-        `<button id="${id}" class="bg-[#385a92] h-[56px] px-[32px] rounded-[64px] text-white text-[22px] font-bold self-start">${label}</button>`;
+        `<button id="${id}" class="bg-[var(--button-primary-bg)] h-[56px] px-[32px] rounded-[64px] text-white text-[22px] font-bold self-start">${label}</button>`;
 
     // The pill states what Decaid currently thinks of this plugin, so it sits
     // on the version line it describes rather than on a row of its own.
@@ -6634,12 +7198,12 @@ function renderPluginVersionInfo(el, pluginId, info, override, { checking = fals
             info.installed ? [{ id: pluginId, loaded: info.loaded, source: info.source, pendingUpdate: info.pending }] : [],
             pluginId)
         : 'unreachable';
-    const MUTED = 'bg-[var(--profile-button-outline-color)]/30 text-[var(--text-primary)] opacity-70';
+    const MUTED = 'bg-[var(--muted-pill-bg)] text-[var(--text-primary)] opacity-70';
     const WARN = 'bg-amber-500/15 text-amber-600';
     const PILL_CLASS = {
         'unreachable': MUTED, 'not-installed': MUTED, 'untracked': MUTED, 'bundled': MUTED,
         'disabled': WARN, 'update-pending': WARN, 'check-failed': WARN,
-        'never-checked': MUTED, 'enabled': 'bg-[#385a92]/15 text-[#385a92]',
+        'never-checked': MUTED, 'enabled': 'bg-[var(--button-primary-tint)] text-[var(--mimoja-blue-v2)]',
     };
     const status = checking
         ? pill(`${getTranslation('Checking')}…`, MUTED)
@@ -6789,12 +7353,12 @@ function renderPluginCard(pluginId, plugins, { asPage = false } = {}) {
     const titleKey = vm.name || override.fallbackTitle || pluginId;
     const title = getTranslation(titleKey);
     const description = vm.plugin ? pluginDescription(vm.plugin) : (override.fallbackDescription ? getTranslation(override.fallbackDescription) : '');
-    const uiUrl = vm.plugin ? pluginUiUrl(vm.plugin) : null;
+    const uiUrl = vm.plugin ? pluginUiUrl(vm.plugin, API_BASE_URL, window.location.href) : null;
 
     const rule = `<div class="h-px w-full bg-[var(--profile-button-outline-color)] opacity-40"></div>`;
 
     const heading = asPage ? '' : `
-        <div class="flex items-center gap-[12px] flex-wrap font-['Inter:Bold',sans-serif] font-bold text-[#385a92] text-[30px] leading-[1.2]">
+        <div class="flex items-center gap-[12px] flex-wrap font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)] text-[30px] leading-[1.2]">
             <span data-i18n-key="${escapeHtml(titleKey)}">${escapeHtml(title)}</span>
         </div>`;
 
@@ -6807,9 +7371,16 @@ function renderPluginCard(pluginId, plugins, { asPage = false } = {}) {
     // Sits on the description's own line, right-aligned in the same column as
     // the enable toggle and every other control -- the actions keep one edge,
     // and the button does not cost a row of its own.
+    //
+    // A button rather than a link: a plugin whose skin answer declares
+    // `settingsOpen` as an overlay gets its page in a dialog over Settings
+    // instead of taking the page away (setupPluginCard binds it). The href
+    // stays on the element as the fallback target, so a tap still navigates
+    // when the plugin asks for nothing.
     const openHtml = uiUrl ? `
-        <a href="${escapeHtml(uiUrl)}" class="bg-[#385a92] h-[56px] px-[32px] rounded-[64px] text-white text-[22px] font-bold inline-flex items-center justify-center flex-shrink-0"
-           data-i18n-key="Open">Open</a>` : '';
+        <button type="button" data-role="plugin-open" data-plugin-url="${escapeHtml(uiUrl)}"
+           class="bg-[var(--button-primary-bg)] h-[56px] px-[32px] rounded-[64px] text-white text-[22px] font-bold inline-flex items-center justify-center flex-shrink-0"
+           data-i18n-key="Open">Open</button>` : '';
 
     // The generic on/off row. DYE2 replaces it with its own master switch
     // (PLUGIN_CARD_OVERRIDES.replacesToggle), which gates the dashboard header
@@ -6819,7 +7390,7 @@ function renderPluginCard(pluginId, plugins, { asPage = false } = {}) {
             <span class="font-['Inter:SemiBold',sans-serif] font-semibold text-[var(--text-primary)] text-[26px]" data-i18n-key="Enabled">${getTranslation('Enabled')}</span>
             <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
                 <input type="checkbox" class="sr-only peer plugin-enable-toggle" ${vm.loaded ? 'checked' : ''}>
-                <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                 <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
             </label>
         </div>`;
@@ -6855,6 +7426,58 @@ function renderPluginCard(pluginId, plugins, { asPage = false } = {}) {
         </div>`;
 }
 
+// Open: the plugin's page in a dialog over Settings when its skin answer asks
+// for one, and the same-frame navigation it has always been otherwise.
+//
+// The declaration is read when the button is tapped, not when the card is
+// drawn: the Extensions list draws a card for every installed plugin, and
+// reading each one's `skin` answer to decide how to draw one button would cost
+// the page a request per plugin. A plugin with no `skin` endpoint is not asked
+// at all, so it pays nothing. Any failure, or no declaration, navigates --
+// which is what the button did before (issue #173).
+const SETTINGS_OPEN_READ_MS = 2000;
+
+function declaresSkinEndpoint(plugin) {
+    return Array.isArray(plugin?.api) && plugin.api.some(e => e?.type === 'http' && e?.id === 'skin');
+}
+
+async function readSettingsOpen(plugin) {
+    if (!plugin?.loaded || !declaresSkinEndpoint(plugin)) return null;
+    try {
+        const answer = await Promise.race([
+            callPluginEndpoint(plugin.id, 'skin', null, 'GET'),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), SETTINGS_OPEN_READ_MS)),
+        ]);
+        return parseSkinAnswer(answer).settingsOpen;
+    } catch (e) {
+        logger.debug(`Extensions: ${plugin.id} skin not read for Open:`, e?.message);
+        return null;
+    }
+}
+
+function bindPluginOpenButton(cardEl, plugin) {
+    const button = cardEl.querySelector('[data-role="plugin-open"]');
+    if (!button) return;
+    const pageUrl = button.dataset.pluginUrl;
+    if (!pageUrl) return;
+    button.addEventListener('click', async () => {
+        // Nothing is disabled while the answer is read: the read is a local
+        // request that normally takes milliseconds, and a second tap either
+        // navigates or is swallowed by the overlay's one-at-a-time guard.
+        const action = plugin ? await readSettingsOpen(plugin) : null;
+        if (!action) {
+            window.location.assign(pageUrl);
+            return;
+        }
+        const { openPluginOverlay } = await import('./modules/plugin-overlay.js');
+        openPluginOverlay(plugin, action, pageUrl, {
+            // The page may have changed the plugin's own settings, which this
+            // category draws; the dashboard's tile re-read has no meaning here.
+            afterClose: () => { if (activeSettingsCategory) updateSettingsContentArea(activeSettingsCategory); },
+        });
+    });
+}
+
 // Wire the listeners a freshly-rendered card needs: the version-info fetch
 // and its install/approve-update buttons, the generic enable toggle (unless
 // an override replaces it), and the manifest's own settings schema, using the
@@ -6885,6 +7508,8 @@ function setupPluginCard(cardEl, pluginId, plugins) {
         window.togglePlugin(pluginId, this.checked, this);
     });
 
+    bindPluginOpenButton(cardEl, vm.plugin);
+
     const schema = vm.settingsSchema;
     const keys = vm.settingsKeys;
     if (keys.length === 0) return;
@@ -6912,211 +7537,6 @@ function setupPluginCard(cardEl, pluginId, plugins) {
     })();
 }
 
-
-// Whether the visualizer plugin currently has a stored (secure) password.
-// PR #588: secure values are returned as { isSet } state, never plaintext.
-let visualizerPasswordIsSet = false;
-
-// Function to set up event listeners for the Visualizer settings
-function setupVisualizerEventListeners() {
-    const saveButton = document.getElementById('save-visualizer-credentials');
-    const usernameInput = document.getElementById('visualizer-username');
-    const passwordInput = document.getElementById('visualizer-password');
-    const autoUploadCheckbox = document.getElementById('visualizer-auto-upload');
-    const minDurationInput = document.getElementById('visualizer-min-duration');
-    const statusDiv = document.getElementById('visualizer-status');
-    const formContainer = document.getElementById('visualizer-form-container');
-    const enabledToggle = document.getElementById('visualizer-enabled');
-
-    if (!saveButton) {
-        console.warn('Save button for Visualizer credentials not found');
-        return;
-    }
-
-    // Load existing settings when the form loads
-    loadVisualizerSettings();
-
-    // Initially hide the form if the Visualizer integration is off
-    if (enabledToggle && formContainer && !enabledToggle.checked) {
-        formContainer.style.display = 'none';
-    }
-
-    // Two independent switches over the plugin's one AutoUpload flag: the master
-    // toggle is the integration itself (credentials form, manual upload from the
-    // shot history), the inner one is whether a finished shot goes up by itself.
-    // visualizer.js writes the AND of the two to the plugin.
-    if (enabledToggle) {
-        enabledToggle.addEventListener('change', async function() {
-            const isEnabled = this.checked;
-            if (formContainer) formContainer.style.display = isEnabled ? 'block' : 'none';
-            try {
-                const { setVisualizerEnabled } = await import('./modules/visualizer.js');
-                await setVisualizerEnabled(isEnabled);
-                ui.showToast(`${getTranslation('Visualizer')} ${isEnabled ? getTranslation('Enabled') : getTranslation('Disabled')}`, 1500, 'success');
-            } catch (error) {
-                console.error('Failed to save Visualizer state:', error);
-                ui.showToast('Failed to update Visualizer state', 2000, 'error');
-            }
-        });
-    }
-
-    if (autoUploadCheckbox) {
-        autoUploadCheckbox.addEventListener('change', async function() {
-            const isAutoUpload = this.checked;
-            try {
-                const { setAutoUpload } = await import('./modules/visualizer.js');
-                await setAutoUpload(isAutoUpload);
-                ui.showToast(
-                    isAutoUpload
-                        ? getTranslation('Shots upload automatically')
-                        : getTranslation('Upload shots from the history long-press menu'),
-                    2000,
-                    'success'
-                );
-            } catch (error) {
-                console.error('Failed to save Visualizer auto-upload state:', error);
-                ui.showToast('Failed to update auto-upload', 2000, 'error');
-            }
-        });
-    }
-
-    // Add click handler for the save button
-    saveButton.addEventListener('click', async () => {
-        const username = usernameInput.value.trim();
-        const password = passwordInput.value; // Don't trim password as spaces might be valid
-
-        if (!username) {
-            ui.showToast('Please enter your Visualizer username', 1500, 'error');
-            return;
-        }
-
-        // Settings POST is a patch (Decaid #588): a typed password sets the
-        // credential, an empty field preserves the stored one via the isSet
-        // marker, an empty field with nothing stored leaves it unset.
-        let passwordPayload;
-        if (password) {
-            try {
-                // Import verifyVisualizerCredentials from api.js
-                const { verifyVisualizerCredentials } = await import('./modules/api.js');
-
-                const isValid = await verifyVisualizerCredentials(username, password);
-
-                if (!isValid) {
-                    ui.showToast('Visualizer log-in failed, check credentials', 900, 'error');
-                    return; // Stop here if credentials are bad
-                }
-
-                ui.showToast('Visualizer log-in success', 900, 'success');
-            } catch (error) {
-                console.error('Error during credential validation:', error);
-                ui.showToast(`Error validating credentials: ${error.message}`, 3000, 'error');
-                return;
-            }
-            passwordPayload = password;
-        } else {
-            passwordPayload = { isSet: visualizerPasswordIsSet }; // preserve current state
-        }
-
-        // Proceed to save to plugin
-        const autoUpload = autoUploadCheckbox.checked;
-        const minDuration = parseInt(minDurationInput.value, 10) || 5;
-
-        // 1. Save UI-only settings to localStorage
-        localStorage.setItem('visualizerAutoUpload', autoUpload.toString());
-
-        // 2. Prepare and save plugin settings - use correct field names expected by visualizer plugin manifest
-        const { setPluginSettings } = await import('./modules/api.js');
-        const { isAutoUploadEnabled } = await import('./modules/visualizer.js');
-        const pluginId = 'visualizer.reaplugin';
-
-        const settingsPayload = {
-            Username: username,
-            Password: passwordPayload,
-            // Both switches gate it — saving credentials must not start uploads
-            // while the integration itself is switched off.
-            AutoUpload: isAutoUploadEnabled(),
-            LengthThreshold: minDuration
-        };
-
-        try {
-            await setPluginSettings(pluginId, settingsPayload);
-            ui.showToast('Visualizer settings saved successfully', 3000, 'success');
-        } catch (error) {
-            console.error('Failed to save visualizer plugin settings:', error);
-            ui.showToast(`Failed to save plugin settings: ${error.message}`, 3000, 'error');
-        }
-    });
-}
-
-// Function to load existing Visualizer settings
-async function loadVisualizerSettings() {
-    try {
-        const { getPluginSettings } = await import('./modules/api.js');
-        const pluginId = 'visualizer.reaplugin';
-
-        const savedSettings = await getPluginSettings(pluginId);
-
-        const usernameInput = document.getElementById('visualizer-username');
-        const passwordInput = document.getElementById('visualizer-password');
-        const autoUploadCheckbox = document.getElementById('visualizer-auto-upload');
-        const minDurationInput = document.getElementById('visualizer-min-duration');
-        const formContainer = document.getElementById('visualizer-form-container');
-        const enabledToggle = document.getElementById('visualizer-enabled');
-
-        // The awaits above can outlive the page: leaving the Visualizer sub-page
-        // re-renders the content area and drops the form, so by the time settings
-        // arrive these lookups return null. Nothing to populate — bail.
-        if (!usernameInput || !passwordInput || !autoUploadCheckbox || !minDurationInput) return;
-
-        if (savedSettings && savedSettings.Username) {
-            usernameInput.value = savedSettings.Username;
-        } else {
-            usernameInput.value = '';
-        }
-
-        // Always clear the password field for security
-        passwordInput.value = '';
-
-        // Secure values are returned as { isSet } state, never plaintext (Decaid #588).
-        const passwordVal = savedSettings?.Password;
-        visualizerPasswordIsSet = passwordVal != null &&
-            (typeof passwordVal === 'object' ? passwordVal.isSet === true : !!passwordVal);
-        passwordInput.placeholder = visualizerPasswordIsSet
-            ? 'Password saved — leave empty to keep'
-            : 'Enter your Visualizer password';
-
-        // The master switch used to be the plugin's AutoUpload flag and nothing
-        // else, so it left no key of its own behind: for an existing install,
-        // "configured" (a username is stored) means the integration is on.
-        if (localStorage.getItem('visualizerEnabled') === null) {
-            localStorage.setItem('visualizerEnabled', String(!!savedSettings?.Username));
-        }
-        const isEnabled = localStorage.getItem('visualizerEnabled') === 'true';
-
-        // Auto-upload keeps the user's own choice even while the master switch is
-        // off (the plugin flag is then false, and says nothing about the choice).
-        const storedAutoUpload = localStorage.getItem('visualizerAutoUpload');
-        const autoUploadValue = storedAutoUpload !== null
-            ? storedAutoUpload === 'true'
-            : (typeof savedSettings.AutoUpload !== 'undefined' ? !!savedSettings.AutoUpload : true);
-        autoUploadCheckbox.checked = autoUploadValue;
-        if (enabledToggle) enabledToggle.checked = isEnabled;
-
-        // Visualizer plugin uses 'Length' not 'LengthThreshold'
-        if (typeof savedSettings.Length !== 'undefined') {
-            minDurationInput.value = parseInt(savedSettings.Length, 10) || 5;
-        }
-
-        // Set form visibility based on the master switch
-        if (formContainer) {
-            formContainer.style.display = isEnabled ? 'block' : 'none';
-        }
-    } catch (error) {
-        console.error('Failed to load Visualizer settings:', error);
-        ui.showToast('Could not load Visualizer plugin settings', 3000, 'error');
-    }
-}
-
 export function renderMachineInformationSettings() {
     const machineInfo = settingsCache.machineInfo;
 
@@ -7125,7 +7545,7 @@ export function renderMachineInformationSettings() {
             const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase());
             const val = typeof value === 'boolean' ? (value ? getTranslation('Enabled') : getTranslation('Disabled')) : String(value);
             return `
-            <div class="flex items-center justify-between py-[16px] border-t border-[#c9c9c9]">
+            <div class="flex items-center justify-between py-[16px] border-t border-[var(--border-primary)]">
                 <span class="font-['Inter:Semi_Bold',sans-serif] font-semibold text-[24px] text-[var(--text-primary)]">${getTranslation(label)}</span>
                 <span class="font-['Inter:Regular',sans-serif] text-[24px] text-[var(--text-primary)]">${val}</span>
             </div>`;
@@ -7133,30 +7553,30 @@ export function renderMachineInformationSettings() {
         : '';
 
     const body = machineInfo ? `
-        <div class="rounded-[10px] border border-[#c9c9c9] p-6 bg-[var(--box-color)] flex flex-col gap-0">
+        <div class="rounded-[10px] border border-[var(--border-primary)] p-6 bg-[var(--box-color)] flex flex-col gap-0">
 
             <div class="flex items-center justify-between py-[16px]">
                 <span class="font-['Inter:Semi_Bold',sans-serif] font-semibold text-[24px] text-[var(--text-primary)]">${getTranslation('Model')}</span>
                 <span class="font-['Inter:Regular',sans-serif] text-[24px] text-[var(--text-primary)]">${machineInfo.model}</span>
             </div>
 
-            <div class="flex items-center justify-between py-[16px] border-t border-[#c9c9c9]">
+            <div class="flex items-center justify-between py-[16px] border-t border-[var(--border-primary)]">
                 <span class="font-['Inter:Semi_Bold',sans-serif] font-semibold text-[24px] text-[var(--text-primary)]">${getTranslation('Firmware')} ${getTranslation('Version')}</span>
                 <span class="font-['Inter:Regular',sans-serif] text-[24px] text-[var(--text-primary)]">${machineInfo.version}</span>
             </div>
 
-            <div class="flex items-center justify-between py-[16px] border-t border-[#c9c9c9]">
+            <div class="flex items-center justify-between py-[16px] border-t border-[var(--border-primary)]">
                 <span class="font-['Inter:Semi_Bold',sans-serif] font-semibold text-[24px] text-[var(--text-primary)]" data-i18n-key="Serial number:">Serial number:</span>
                 <div class="flex items-center gap-3">
                     <button onclick="navigator.clipboard.writeText('${machineInfo.serialNumber}').then(()=>{ this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy',1500); })"
-                            class="text-[18px] font-semibold text-[#385a92] px-3 py-1 rounded-[8px] border border-[#385a92] hover:bg-[#385a92] hover:text-white transition-colors">
+                            class="text-[18px] font-semibold text-[var(--mimoja-blue-v2)] px-3 py-1 rounded-[8px] border border-[var(--mimoja-blue-v2)] hover:bg-[var(--button-primary-bg)] hover:text-white transition-colors">
                         ${getTranslation('Copy')}
                     </button>
                     <span class="font-['Inter:Regular',sans-serif] text-[24px] text-[var(--text-primary)]">${machineInfo.serialNumber}</span>
                 </div>
             </div>
 
-            <div class="flex items-center justify-between py-[16px] border-t border-[#c9c9c9]">
+            <div class="flex items-center justify-between py-[16px] border-t border-[var(--border-primary)]">
                 <span class="font-['Inter:Semi_Bold',sans-serif] font-semibold text-[24px] text-[var(--text-primary)]">${getTranslation('Group Head Controller')}</span>
                 <span class="font-['Inter:Regular',sans-serif] text-[24px] text-[var(--text-primary)]">${machineInfo.GHC ? getTranslation('Enabled') : getTranslation('Disabled')}</span>
             </div>
@@ -7164,7 +7584,7 @@ export function renderMachineInformationSettings() {
             ${extraRows}
         </div>
     ` : `
-        <div class="rounded-[10px] border border-[#c9c9c9] p-6 bg-[var(--box-color)]">
+        <div class="rounded-[10px] border border-[var(--border-primary)] p-6 bg-[var(--box-color)]">
             <p class="font-['Inter:Regular',sans-serif] text-[24px] text-[var(--text-primary)]" data-i18n-key="Fetching machine info...">Fetching machine info...</p>
         </div>
     `;
@@ -7174,7 +7594,7 @@ export function renderMachineInformationSettings() {
             <div class="flex flex-col font-['Inter:Semi_Bold',sans-serif] font-semibold justify-center leading-[0] min-w-full not-italic relative text-[var(--text-primary)] text-[36px] text-center w-[min-content]">
                 <p class="leading-[1.2]" data-i18n-key="Machine Info">Machine Info</p>
             </div>
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
             <div class="w-full flex flex-col gap-4">
                 ${body}
             </div>
@@ -7204,7 +7624,7 @@ function renderFirmwareCheckBlock(summary) {
     const { status, latestBuild, latestLabel, releaseNotes, reason, operationState } = summary;
 
     if (operationState && operationState !== 'idle') {
-        return `<p class="text-[22px] font-bold text-[#385a92]">${getTranslation('A firmware update is already in progress')} (${escapeHtml(operationState)})</p>`;
+        return `<p class="text-[22px] font-bold text-[var(--mimoja-blue-v2)]">${getTranslation('A firmware update is already in progress')} (${escapeHtml(operationState)})</p>`;
     }
 
     const pill = (text, cls) =>
@@ -7222,7 +7642,7 @@ function renderFirmwareCheckBlock(summary) {
                 </div>
                 ${releaseNotes ? `<p class="text-[20px] text-[var(--text-secondary)] leading-[1.4]">${escapeHtml(releaseNotes)}</p>` : ''}
                 <p class="text-[20px] font-bold text-[var(--text-primary)] leading-[1.4]">${getTranslation(FIRMWARE_DURATION_NOTE)}</p>
-                <button id="firmware-apply-btn" class="self-start bg-[#385a92] h-[56px] px-[28px] rounded-[64px] text-white text-[22px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                <button id="firmware-apply-btn" class="self-start bg-[var(--button-primary-bg)] h-[56px] px-[28px] rounded-[64px] text-white text-[22px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                         ${artifactId ? `onclick="window.applyFirmwareUpdate('${escapeHtml(artifactId)}')"` : 'disabled'}>
                     ${getTranslation('Download & Install')}
                 </button>
@@ -7230,7 +7650,7 @@ function renderFirmwareCheckBlock(summary) {
     }
 
     if (status === 'upToDate') {
-        return pill(getTranslation('Up to date'), 'bg-[#385a92]/15 text-[#385a92]');
+        return pill(getTranslation('Up to date'), 'bg-[var(--button-primary-tint)] text-[var(--mimoja-blue-v2)]');
     }
 
     // Installed build is newer than anything bundled — a beta machine, not a
@@ -7241,7 +7661,7 @@ function renderFirmwareCheckBlock(summary) {
 
     const why = FIRMWARE_REASON_TEXT[reason];
     return `<div class="flex items-center gap-[14px] flex-wrap">
-                ${pill(getTranslation('Could not check'), 'bg-[var(--profile-button-outline-color)]/30 text-[var(--text-primary)] opacity-70')}
+                ${pill(getTranslation('Could not check'), 'bg-[var(--muted-pill-bg)] text-[var(--text-primary)] opacity-70')}
                 ${why ? `<span class="text-[22px] text-[var(--text-secondary)]">${getTranslation(why)}</span>` : ''}
             </div>`;
 }
@@ -7393,8 +7813,8 @@ function renderFirmwareSteps(progress, { failed = false, cancelled = false } = {
         const circleCls = stoppedHere
             ? (failed ? 'bg-[#da515e] text-white' : 'bg-[var(--text-secondary)] text-white')
             : isPast ? 'bg-[#0CA581] text-white'
-            : isCurrent ? 'bg-[#385a92] text-white'
-            : 'bg-transparent border-2 border-[#c9c9c9]';
+            : isCurrent ? 'bg-[var(--button-primary-bg)] text-white'
+            : 'bg-transparent border-2 border-[var(--border-primary)]';
         const glyph = stoppedHere ? '✕' : isPast ? '✓' : '';
         const lineCls = isPast && i < last ? 'bg-[#0CA581]' : 'bg-[#c9c9c9]';
         const labelCls = isCurrent || isPast ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]';
@@ -7420,11 +7840,11 @@ export function renderFirmwareUpdateSettings() {
                 <p class="leading-[1.2]" data-i18n-key="Firmware Update">Firmware Update</p>
             </div>
 
-            <div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>
+            <div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>
 
             <div class="content-stretch flex flex-col gap-[10px] relative w-full">
                 <div class="content-stretch flex items-center justify-between relative w-full">
-                    <p class="font-['Inter:Bold',sans-serif] font-bold text-[#385a92] text-[30px] leading-[1.2]"><span data-i18n-key="Firmware">Firmware</span> <span data-i18n-key="Version">Version</span></p>
+                    <p class="font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)] text-[30px] leading-[1.2]"><span data-i18n-key="Firmware">Firmware</span> <span data-i18n-key="Version">Version</span></p>
                     <p id="de1-firmware-version" class="font-['Inter:Regular',sans-serif] text-[24px] text-[var(--text-primary)]">${de1Version || '—'}</p>
                 </div>
                 <!-- Filled by initFirmwareCheck from GET /machine/firmware. Seeded from
@@ -7454,13 +7874,13 @@ export function renderFirmwareUpdateSettings() {
                     </summary>
 
                     <div class="content-stretch flex flex-col gap-[12px] items-start relative w-full pt-[8px]">
-                        <p class="font-['Inter:Bold',sans-serif] font-bold text-[#385a92] text-[30px] leading-[1.2]" data-i18n-key="DE1 Firmware File">DE1 Firmware File</p>
+                        <p class="font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)] text-[30px] leading-[1.2]" data-i18n-key="DE1 Firmware File">DE1 Firmware File</p>
 
                         <!-- The file and the buttons that act on it live in one card so the
                              "what did I pick" state reads as a unit with "what happens to it".
                              Select File and Upload stay paired on the same row/level — they're
                              the two steps of one action, in reading order. -->
-                        <div class="rounded-[10px] border border-[#c9c9c9] p-4 bg-[var(--box-color)] flex items-center justify-between gap-[20px] flex-wrap w-full">
+                        <div class="rounded-[10px] border border-[var(--border-primary)] p-4 bg-[var(--box-color)] flex items-center justify-between gap-[20px] flex-wrap w-full">
                             <div class="min-w-0">
                                 <p id="firmware-filename" class="font-['Inter:Regular',sans-serif] text-[22px] text-[var(--text-primary)] truncate" data-i18n-key="No file selected">No file selected</p>
                                 <!-- Filled by onFirmwareFileSelected: size in KB/MB, plus a plain-
@@ -7469,11 +7889,11 @@ export function renderFirmwareUpdateSettings() {
                                 <p id="firmware-filename-hint" class="text-[16px] text-[var(--text-secondary)]"></p>
                             </div>
                             <div class="flex items-center gap-[16px] flex-shrink-0">
-                                <button class="bg-[#385a92] h-[56px] px-[28px] rounded-[64px] text-white text-[20px] font-bold"
+                                <button class="bg-[var(--button-primary-bg)] h-[56px] px-[28px] rounded-[64px] text-white text-[20px] font-bold"
                                         onclick="document.getElementById('firmware-file-input').click()">
                                     ${getTranslation('Select')} ${getTranslation('File')}
                                 </button>
-                                <button id="firmware-upload-btn" class="bg-[#385a92] h-[56px] px-[28px] rounded-[64px] text-white text-[20px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                                <button id="firmware-upload-btn" class="bg-[var(--button-primary-bg)] h-[56px] px-[28px] rounded-[64px] text-white text-[20px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                                         disabled onclick="window.uploadFirmware()">
                                     ${getTranslation(firmwareUploadInFlight ? 'Uploading...' : 'Upload')}
                                 </button>
@@ -7494,7 +7914,7 @@ export function renderFirmwareUpdateSettings() {
                          a second thing sitting still next to the tracker. The verify latch,
                          not the percentage, is what ends Upload: the stream stops at 99%. -->
                     <div id="firmware-progress-bar-wrap" class="w-full h-[10px] rounded-full bg-[#c9c9c9] overflow-hidden" style="display:${lastFirmwareProgress?.phase === 'uploading' && !firmwareVerifyStartedAt ? 'block' : 'none'}">
-                        <div id="firmware-progress-bar" class="h-full bg-[#385a92] transition-[width] duration-200" style="width:${lastFirmwareProgress?.phase === 'uploading' && !firmwareVerifyStartedAt ? lastFirmwareProgress.percent : 0}%"></div>
+                        <div id="firmware-progress-bar" class="h-full bg-[var(--button-primary-bg)] transition-[width] duration-200" style="width:${lastFirmwareProgress?.phase === 'uploading' && !firmwareVerifyStartedAt ? lastFirmwareProgress.percent : 0}%"></div>
                     </div>
                     <!-- Visibility toggled imperatively by runFirmwareOperation, not re-render:
                          it must appear the instant an update starts and disappear once the
@@ -7530,10 +7950,10 @@ function renderAppUpdateBlock(state) {
     maybeCheckLatestRelease(DECAID_REPO, ['rea']);
 
     const current = settingsCache.appInfo?.version || state?.currentVersion || '';
-    const latest = (settingsCache.latestReleases || {})[DECAID_REPO];
     // No tag yet (still fetching, offline, or rate-limited) is not "up to date" --
     // say nothing rather than guess.
-    const known = !!latest && !!current;
+    const { tag: latest, known: tagKnown } = getTag(releaseState(), DECAID_REPO);
+    const known = tagKnown && !!current;
     const needsUpdate = known && compareVersions(current, latest) < 0;
     const latestPlain = String(latest || '').replace(/^v/i, '');
 
@@ -7555,21 +7975,21 @@ function renderAppUpdateBlock(state) {
     // browser itself.
     let action = '';
     if (busy) {
-        action = `<button disabled class="${btn} bg-[#385a92] opacity-50 text-white">${getTranslation('Updating')}…</button>`;
+        action = `<button disabled class="${btn} bg-[var(--button-primary-bg)] opacity-50 text-white">${getTranslation('Updating')}…</button>`;
     } else if (needsUpdate && state?.installable) {
         action = `<button onclick="window.installAppUpdate()" class="${btn} bg-[#2e7d32] text-white">${getTranslation('Update App')}</button>`;
     } else if (needsUpdate) {
-        action = `<a href="${DECAID_RELEASES_URL}" class="${btn} bg-[#385a92] text-white no-underline">${getTranslation('Download')}</a>`;
+        action = `<a href="${DECAID_RELEASES_URL}" class="${btn} bg-[var(--button-primary-bg)] text-white no-underline">${getTranslation('Download')}</a>`;
     }
 
     const progressBar = phase === 'downloading'
-        ? `<div class="w-full h-[10px] rounded-full bg-[#c9c9c9] overflow-hidden mt-2"><div class="h-full bg-[#385a92] transition-[width] duration-200" style="width:${pct}%"></div></div>`
+        ? `<div class="w-full h-[10px] rounded-full bg-[#c9c9c9] overflow-hidden mt-2"><div class="h-full bg-[var(--button-primary-bg)] transition-[width] duration-200" style="width:${pct}%"></div></div>`
         : '';
 
     // Card *contents* only -- this renders into #app-update-section, which carries
     // the same box classes as the Version card it sits beside.
     return `
-        <p class="text-[20px] font-['Inter:Bold',sans-serif] font-bold text-[#385a92]" data-i18n-key="Update">Update</p>
+        <p class="text-[20px] font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)]" data-i18n-key="Update">Update</p>
         <div class="flex items-center gap-[10px] flex-wrap">
             ${badge}
             ${needsUpdate ? `<span class="text-[24px] font-['Inter:Regular',sans-serif]">${latestPlain}</span>` : ''}
@@ -7613,22 +8033,22 @@ export function renderUpdatesSettings() {
     const infoAvailable = !!appInfo;
     const appInfoDetails = infoAvailable ? `
                 <div class="grid gap-4 sm:grid-cols-2">
-                    <div class="rounded-[10px] border border-[#c9c9c9] p-4 bg-[var(--box-color)]">
-                        <p class="text-[20px] font-['Inter:Bold',sans-serif] font-bold text-[#385a92]" data-i18n-key="Version">Version</p>
+                    <div class="rounded-[10px] border border-[var(--border-primary)] p-4 bg-[var(--box-color)]">
+                        <p class="text-[20px] font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)]" data-i18n-key="Version">Version</p>
                         <p class="text-[24px] font-['Inter:Regular',sans-serif]">${appInfo.version} (${appInfo.buildNumber})</p>
                         <p class="text-[16px] text-[var(--text-secondary)]">Full: ${appInfo.fullVersion}</p>
                         <p class="text-[16px] text-[var(--text-secondary)]">${formatBuildTimestamp(appInfo.buildTime)}</p>
                     </div>
-                    <div class="rounded-[10px] border border-[#c9c9c9] p-4 bg-[var(--box-color)]">
-                        <p class="text-[20px] font-['Inter:Bold',sans-serif] font-bold text-[#385a92]" data-i18n-key="Source">Source</p>
+                    <div class="rounded-[10px] border border-[var(--border-primary)] p-4 bg-[var(--box-color)]">
+                        <p class="text-[20px] font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)]" data-i18n-key="Source">Source</p>
                         <p class="text-[24px] font-['Inter:Regular',sans-serif]">${appInfo.branch}</p>
                         <p class="text-[16px] text-[var(--text-secondary)]">Commit: ${appInfo.commitShort}</p>
                         <p class="text-[16px] text-[var(--text-secondary)]">App Store: ${appInfo.appStore ? 'Yes' : 'No'}</p>
                     </div>
                 </div>
             ` : `
-                <div class="rounded-[10px] border border-[#c9c9c9] p-4 bg-[var(--box-color)]">
-                    <p class="text-[20px] font-['Inter:Bold',sans-serif] font-bold text-[#385a92]" data-i18n-key="Update info">Update info</p>
+                <div class="rounded-[10px] border border-[var(--border-primary)] p-4 bg-[var(--box-color)]">
+                    <p class="text-[20px] font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)]" data-i18n-key="Update info">Update info</p>
                     <p class="text-[24px] font-['Inter:Regular',sans-serif]" data-i18n-key="Fetching build metadata...">Fetching build metadata...</p>
                 </div>
             `;
@@ -7643,16 +8063,16 @@ export function renderUpdatesSettings() {
                 <div class="flex flex-col gap-[30px] w-full">
                     <div class="flex flex-col gap-3">
                         <div class="flex items-center justify-between">
-                            <div class="font-['Inter:Bold',sans-serif] font-bold text-[#385a92] text-[30px]" data-i18n-key="Firmware Update">Firmware Update</div>
-                            <button class="bg-[#385a92] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold"Check></button>
+                            <div class="font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)] text-[30px]" data-i18n-key="Firmware Update">Firmware Update</div>
+                            <button class="bg-[var(--button-primary-bg)] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold"Check></button>
                         </div>
                         <p class="text-[24px] text-[var(--text-primary)]" data-i18n-key="Check for firmware updates">Check for firmware updates</p>
                     </div>
 
                     <div class="flex flex-col gap-3">
                         <div class="flex items-center justify-between">
-                            <div class="font-['Inter:Bold',sans-serif] font-bold text-[#385a92] text-[30px]">App Update</div>
-                            <button class="bg-[#385a92] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold" data-i18n-key="Check">Check</button>
+                            <div class="font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)] text-[30px]">App Update</div>
+                            <button class="bg-[var(--button-primary-bg)] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold" data-i18n-key="Check">Check</button>
                         </div>
                         <p class="text-[24px] text-[var(--text-primary)]" data-i18n-key="Check for application updates">Check for application updates</p>
                     </div>
@@ -7660,7 +8080,7 @@ export function renderUpdatesSettings() {
 
                 <div class="w-full flex flex-col gap-4">
                     <div class="flex flex-col gap-4">
-                        <p class="font-['Inter:Bold',sans-serif] font-bold text-[#385a92] text-[30px]">Decaid Information</p>
+                        <p class="font-['Inter:Bold',sans-serif] font-bold text-[var(--mimoja-blue-v2)] text-[30px]">Decaid Information</p>
                         ${appInfoDetails}
                     </div>
                 </div>
@@ -7699,9 +8119,9 @@ export function subcategoriesFor(mainCategoryKey) {
     const statics = (category?.subcategories || []).filter(subcat => !subcat.bengleOnly || isBengleMachine());
     if (mainCategoryKey !== 'extensions') return statics;
 
-    // Visualizer and Shot Uploader already have hand-built pages of their own
-    // (credentials, account linking) that the generic card cannot replace, so
-    // they must not also appear as a second, poorer row for the same plugin.
+    // Shot Uploader already has a hand-built page of its own (account linking)
+    // that the generic card cannot replace, so it must not also appear as a
+    // second, poorer row for the same plugin.
     const dedicated = new Set(Object.values(PLUGIN_BACKED_SUBCATEGORIES));
     const pluginRows = extensionPluginNavEntries().filter(row => !dedicated.has(row.pluginId));
     // The aggregate Plugins page is the fallback for "no plugins, or the bridge
@@ -7839,7 +8259,7 @@ async function _preloadSettingsInternal() {
                     <div class="flex flex-col items-center justify-center h-full gap-[40px] p-8">
                         <p class="text-[var(--text-primary)] text-[30px] font-bold text-center">Unable to reach De1</p>
                         <p class="text-[var(--text-primary)] text-[24px] text-center opacity-60">Retrying automatically every 3 seconds...</p>
-                        <button class="bg-[#385a92] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold"
+                        <button class="bg-[var(--button-primary-bg)] h-[72px] px-[48px] rounded-[72px] text-white text-[24px] font-bold"
                                 onclick="window.retryLoadSettings()">${getTranslation('Retry')} ${getTranslation('Now')}</button>
                     </div>`;
             }
@@ -7892,8 +8312,8 @@ async function _preloadSettingsInternal() {
         // Handle Workflow result
         if (workflowResult.status === 'fulfilled') {
             const workflow = workflowResult.value;
-            // Steam and hot water stage a full copy of their block, so the
-            // staged block replaces the fetched one field by field.
+            // Steam and hot water stage only the edited keys, laid over the
+            // fetched block so untouched fields keep the machine's value.
             if (workflow && typeof workflow === 'object') {
                 if (pendingChanges.workflow.steamSettings) {
                     workflow.steamSettings = mergeStagedOverFetched(
@@ -7957,7 +8377,7 @@ function getCategoryTitle(category) {
         case 'flush': return 'Flush Settings';
         case 'de1': return 'DE1 Settings';
         case 'fanthreshold': return 'Fan Threshold Settings';
-        case 'usbchargermode': return 'USB Charger Settings';
+        case 'usbchargermode': return 'Smart Charging';
         case 'cupwarmer': return 'Cup Warmer';
         case 'ledstrip': return 'Lighting';
         case 'machineinfo': return 'Machine Info';
@@ -8001,15 +8421,15 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
     initDisplayWebSocket();
 
     // Set up event listeners
+    bindSettingsJump();
     const cancelBtn = document.getElementById('cancel-settings-btn');
     if (cancelBtn) {
         cancelBtn.addEventListener('click', () => {
             resetPendingChanges();
-            // Exiting settings straight from the Lighting page must not leave a
-            // preview colour latched on the strip — one PUT of the real palette
-            // settles both that and any deferred cross-state edit. Also
-            // release this page's manual sequence run (a state-triggered run
-            // is untouched -- it belongs to app.js, not this page).
+            // Cancel discards: drop the preview so the strip shows the
+            // palette the machine actually stores, and leave the unsaved edit
+            // unwritten. Also release this page's manual sequence run (a
+            // state-triggered run is untouched -- it belongs to app.js).
             ledRestoreStrip();
             ledSeqReleaseManual();
             // …and exiting from the Load Cells verify step must hand the
@@ -8025,10 +8445,6 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
     const saveBtn = document.getElementById('save-settings-btn');
     if (saveBtn) {
         saveBtn.addEventListener('click', async () => {
-            const visualizerAutoUpload = document.getElementById('visualizer-auto-upload');
-            if (visualizerAutoUpload) {
-                localStorage.setItem('visualizerAutoUpload', visualizerAutoUpload.checked.toString());
-            }
             try {
                 await flushPendingChanges();
             } catch (error) {
@@ -8037,12 +8453,12 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
                 return;
             }
             ui.showToast('Settings updated', 3000, 'success');
-            // Exiting settings straight from the Lighting page must not leave a
-            // preview colour latched on the strip — one PUT of the real palette
-            // settles both that and any deferred cross-state edit. Also
-            // release this page's manual sequence run (a state-triggered run
-            // is untouched -- it belongs to app.js, not this page).
-            ledRestoreStrip();
+            // Exiting settings straight from the Lighting page: persist an
+            // unsaved palette (this IS the save button) and drop the preview,
+            // so the strip shows what was stored. Also release this page's
+            // manual sequence run (a state-triggered run is untouched -- it
+            // belongs to app.js, not this page).
+            await ledSaveOnExit();
             ledSeqReleaseManual();
             // …and exiting from the Load Cells verify step must hand the
             // scale WS back to the main page's live weight readout.
@@ -8059,6 +8475,15 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
     let activeMainCategoryKey = restoredMainCategory;
 
     const activateSubcategory = button => {
+        // Once a legacy category has mounted, the shell hands navigation over to
+        // this listener, so this is where settings page-to-page time is spent --
+        // not in settings-shell's renderCategory, which only sees the first
+        // category entered. Timed here rather than inside
+        // updateSettingsContentArea because that also runs on re-renders nobody
+        // tapped for (a settings write, a language change), and those are not
+        // navigations. Per-category init runs on setTimeout(..., 0) and so lands
+        // after this line.
+        const nav = timeNav(`settings/${button.dataset.category}`);
         subCategoriesPanel?.querySelectorAll('.settings-subnav-btn').forEach(item => {
             const active = item === button;
             item.classList.toggle('text-white', active);
@@ -8067,7 +8492,8 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
         });
         activeSettingsCategory = button.dataset.category;
         writeSettingsLocation(activeMainCategoryKey, activeSettingsCategory);
-        updateSettingsContentArea(activeSettingsCategory);
+        updateSettingsContentArea(activeSettingsCategory, nav);
+        nav.done();
     };
 
     const activateMainCategory = (button, requestedCategory = null) => {
@@ -8147,6 +8573,25 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
         if (activeSettingsCategory) updateSettingsContentArea(activeSettingsCategory);
     };
 
+    window.setScreensaverShowClock = function(enabled) {
+        ui.setScreensaverClockEnabled(enabled);
+        // The clock format, date format and position rows only exist while the
+        // clock does, so this toggle has to repaint the panel.
+        if (activeSettingsCategory) updateSettingsContentArea(activeSettingsCategory);
+    };
+
+    window.setScreensaverClockFormat = function(format) {
+        ui.setScreensaverClockFormat(format);
+    };
+
+    window.setScreensaverDateFormat = function(format) {
+        ui.setScreensaverDateFormat(format);
+    };
+
+    window.setScreensaverClockPosition = function(position) {
+        ui.setScreensaverClockPosition(position);
+    };
+
     window.handleScreensaverCycleChange = function(value) {
         const applied = ui.setScreensaverCycleSeconds(value);
         const input = document.getElementById('screensaver-cycle-seconds');
@@ -8155,6 +8600,10 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
     };
 
     window.setBlackScreenSaver = function(enabled) {
+        // The Images|Black segment calls this on every tap, including a tap on the
+        // segment already selected. Writing screensaverEnabled below on a no-op tap
+        // would silently switch the saver back on for someone who had turned it off.
+        if (isBlackScreenSaver() === !!enabled) return;
         apiSetBlackScreenSaver(enabled);
         // Either/or: a black cover IS the screen saver, so switching it on turns
         // the image saver off. Switching it off hands the image saver back.
@@ -8170,6 +8619,22 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
         // applied on the next sleep -- changing it must not dim the screen being read.
         ui.showToast(getTranslation('Saved'), 2000, 'success');
         if (activeSettingsCategory) updateSettingsContentArea(activeSettingsCategory);
+    };
+
+    window.setCustomSaverBrightness = function(enabled) {
+        setCustomSaverBrightnessEnabled(enabled);
+        if (activeSettingsCategory) updateSettingsContentArea(activeSettingsCategory);
+    };
+
+    window.setSaverBrightnessLevel = function(value) {
+        const level = setSaverBrightness(value);
+        const slider = document.getElementById('saver-brightness-slider');
+        if (slider) {
+            slider.value = level;
+            syncBrightnessSliderFill(slider, level);
+        }
+        const readout = document.getElementById('saver-brightness-value');
+        if (readout) readout.textContent = `${level}%`;
     };
 
     window.setWaterTankUnit = function(unit) {
@@ -8339,7 +8804,7 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
             // before it reaches innerHTML.
             const due = pluginUpdatesInFlight(container, plugins);
             container.innerHTML = ids.map((id, i) => `
-                ${i > 0 ? '<div class="h-0 relative w-full"><hr class="border-t border-[#c9c9c9] w-full" /></div>' : ''}
+                ${i > 0 ? '<div class="h-0 relative w-full"><hr class="border-t border-[var(--border-primary)] w-full" /></div>' : ''}
                 ${renderPluginCard(id, plugins)}
             `).join('');
             translatePage();
@@ -8387,7 +8852,7 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
                 // ponytail: covers the switch in this skin only -- disabling DYE2
                 // from Decaid's own settings page bypasses it. Move to
                 // PluginLoaderService.disablePlugin upstream if that path matters.
-                if (pluginId === DYE2_PLUGIN_ID) await clearDyeWorkflowContext({ includeGrinderSetting: true });
+                if (pluginId === DYE2_PLUGIN_ID) await clearDye2ContextOnDisable();
                 await disablePlugin(pluginId);
             }
             if (label) label.textContent = enable ? 'Enabled' : 'Disabled';
@@ -8605,10 +9070,10 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
                              onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
                              class="w-[40px] h-[40px] rounded-full flex-shrink-0 object-cover"
                              alt="${escapeHtml(name)}">
-                        <div style="display:none" class="w-[40px] h-[40px] rounded-full bg-[#385a92] flex-shrink-0 items-center justify-center text-white text-[16px] font-bold">${escapeHtml(name[0].toUpperCase())}</div>
+                        <div style="display:none" class="w-[40px] h-[40px] rounded-full bg-[var(--button-primary-bg)] flex-shrink-0 items-center justify-center text-white text-[16px] font-bold">${escapeHtml(name[0].toUpperCase())}</div>
                         <div class="flex flex-col gap-[4px] max-w-[80%]">
                             <div class="flex items-center gap-[8px] flex-wrap">
-                                <span class="text-[16px] font-semibold text-[#385a92]">${escapeHtml(name)}</span>
+                                <span class="text-[16px] font-semibold text-[var(--mimoja-blue-v2)]">${escapeHtml(name)}</span>
                                 ${msg.automsg ? '<span class="text-[12px] px-[6px] py-[1px] rounded-full bg-[var(--button-grey)] text-[var(--low-contrast-white)]">auto</span>' : ''}
                                 <span class="text-[14px] text-[var(--low-contrast-white)] opacity-60">${date}</span>
                             </div>
@@ -8623,7 +9088,7 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
                     <div class="flex gap-[12px] items-start justify-end">
                         <div class="flex flex-col gap-[4px] max-w-[80%] items-end">
                             <span class="text-[14px] text-[var(--low-contrast-white)] opacity-60">${date}</span>
-                            <div class="bg-[#385a92] rounded-[16px] rounded-tr-[4px] overflow-hidden">
+                            <div class="bg-[var(--button-primary-bg)] rounded-[16px] rounded-tr-[4px] overflow-hidden">
                                 ${subjectText ? `<div class="px-[16px] pt-[10px] pb-[8px] border-b border-white/20"><p class="text-[15px] font-semibold text-white/70">${subjectText}</p></div>` : ''}
                                 <div class="px-[16px] py-[12px] text-[19px] text-white whitespace-pre-wrap leading-[1.5]">${bodyText}</div>
                             </div>
@@ -8653,13 +9118,16 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
         });
     };
 
-    window.selectFeedbackCategory = function(value) {
-        document.getElementById('feedback-category').value = value;
-        document.querySelectorAll('[data-feedback-card]').forEach(btn => {
-            const active = btn.dataset.feedbackCard === value;
+    // Both card rows light up the same way; only the attribute and the hidden
+    // input they drive differ.
+    const selectFeedbackCard = (selector, datasetKey, inputId, value) => {
+        const input = document.getElementById(inputId);
+        if (input) input.value = value;
+        document.querySelectorAll(selector).forEach(btn => {
+            const active = btn.dataset[datasetKey] === value;
             btn.setAttribute('aria-pressed', active);
-            btn.classList.toggle('bg-[#385a92]', active);
-            btn.classList.toggle('border-[#385a92]', active);
+            btn.classList.toggle('bg-[var(--button-primary-bg)]', active);
+            btn.classList.toggle('border-[var(--mimoja-blue-v2)]', active);
             btn.classList.toggle('text-white', active);
             btn.classList.toggle('bg-[var(--box-color)]', !active);
             btn.classList.toggle('border-[var(--profile-button-outline-color)]', !active);
@@ -8667,8 +9135,44 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
         });
     };
 
+    window.selectFeedbackCategory = function(value) {
+        selectFeedbackCard('[data-feedback-card]', 'feedbackCard', 'feedback-category', value);
+    };
+
+    // The installed plugins, read when the user first says the report is about
+    // one: the feedback page should not cost a plugin list nobody asked for.
+    let feedbackPluginsLoaded = false;
+    async function fillFeedbackPlugins() {
+        const select = document.getElementById('feedback-plugin');
+        if (!select || feedbackPluginsLoaded) return;
+        feedbackPluginsLoaded = true;
+        try {
+            const plugins = (await getPlugins() || []).filter(p => p?.id).sort((a, b) =>
+                String(a.name || a.id).localeCompare(String(b.name || b.id)));
+            select.innerHTML = ['<option value="">Not sure / not listed</option>',
+                ...plugins.map(p => `<option value="${escapeHtml(p.id)}" data-version="${escapeHtml(p.version || '')}">`
+                    + `${escapeHtml(p.name || p.id)}${p.version ? ` ${escapeHtml(p.version)}` : ''}</option>`)].join('');
+        } catch (e) {
+            logger.warn('Feedback: plugin list unavailable:', e);
+            // The report still goes, just without naming the plugin.
+            feedbackPluginsLoaded = false;
+            select.innerHTML = '<option value="">Not sure / not listed</option>';
+        }
+    }
+
+    window.selectFeedbackArea = function(value) {
+        selectFeedbackCard('[data-feedback-area]', 'feedbackArea', 'feedback-area', value);
+        const row = document.getElementById('feedback-plugin-row');
+        if (row) {
+            row.classList.toggle('hidden', value !== 'plugin');
+            row.classList.toggle('flex', value === 'plugin');
+        }
+        if (value === 'plugin') fillFeedbackPlugins();
+    };
+
     window.submitFeedback = async function() {
         const category  = document.getElementById('feedback-category')?.value || 'bug';
+        const area      = document.getElementById('feedback-area')?.value || FEEDBACK_DEFAULT_AREA;
         const title     = (document.getElementById('feedback-title')?.value || '').trim();
         const desc      = (document.getElementById('feedback-description')?.value || '').trim();
         const attachSys = document.getElementById('feedback-attach-sysinfo')?.checked;
@@ -8680,7 +9184,19 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
             return;
         }
 
-        const fullDesc = `**${title}**\n\n${desc}`;
+        // Decaid takes the first line of the description as the issue title, so
+        // the area tag rides there and the area itself goes in the body.
+        const pluginOption = document.getElementById('feedback-plugin')?.selectedOptions?.[0];
+        const fullDesc = buildFeedbackDescription({
+            area,
+            title,
+            description: desc,
+            plugin: {
+                skinVersion: APP_VERSION,
+                id: pluginOption?.value || '',
+                version: pluginOption?.dataset?.version || '',
+            },
+        });
 
         if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting…'; }
         statusEl.innerHTML = '';
@@ -8696,7 +9212,7 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
             statusEl.innerHTML = `
                 <span class="text-green-600 font-bold text-[24px]" data-i18n-key="Submitted!">Submitted!</span>
                 ${data.issueUrl ? `<a href="${data.issueUrl}"
-                   class="ml-3 text-[#385a92] underline text-[22px]">View issue</a>` : ''}`;
+                   class="text-[var(--mimoja-blue-v2)] underline text-[22px]">View issue</a>` : ''}`;
             document.getElementById('feedback-title').value = '';
             document.getElementById('feedback-description').value = '';
             const preview = document.getElementById('feedback-description-preview');
@@ -8742,18 +9258,86 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
         document.getElementById('sensor-cal-warning-modal')?.close();
     };
 
-    // Declining leaves the page entirely rather than sitting on a live
-    // calibration screen the user just said they did not want. Reuses the
-    // settings sub-nav so the highlighted menu item follows.
-    window.sensorCalWarningCancel = function() {
-        document.getElementById('sensor-cal-warning-modal')?.close();
-        document.querySelector('.settings-subnav-btn[data-category="calib_defaultload"]')?.click();
+    // Opening Advanced is what asks. The browser also fires this on every
+    // re-render of an already-open disclosure; sensorCalWarningNextState is a
+    // no-op once acknowledged and sensorCalShowWarning guards on .open.
+    window.sensorCalAdvancedToggle = function(isOpen) {
+        sensorCalAdvancedOpen = isOpen;
+        if (!isOpen) return;
+        const { state, open } = sensorCalWarningNextState(
+            { shown: sensorCalWarningShown, ack: sensorCalWarningAck }, 'open');
+        sensorCalWarningShown = state.shown;
+        sensorCalWarningAck = state.ack;
+        if (open) sensorCalShowWarning();
     };
+
+    // Declining folds Advanced shut again and stays on the page: the flow
+    // control above it was never behind the warning.
+    window.sensorCalWarningCancel = function() {
+        ({ shown: sensorCalWarningShown, ack: sensorCalWarningAck } = sensorCalWarningNextState(
+            { shown: sensorCalWarningShown, ack: sensorCalWarningAck }, 'cancel').state);
+        sensorCalAdvancedOpen = false;
+        const dlg = document.getElementById('sensor-cal-warning-modal');
+        if (dlg?.open) dlg.close();
+        const details = document.getElementById('sensor-cal-advanced');
+        if (details) details.open = false;
+    };
+
+    // +/- step; typing goes through sensorCalFlowInput. Both clamp, paint
+    // immediately, and share one debounced write.
+    window.sensorCalFlowAdjust = function(direction) {
+        if (sensorCalFlow === null) return;
+        sensorCalFlowSet(sensorCalFlow + direction * FLOW_MULTIPLIER_STEP);
+    };
+
+    window.sensorCalFlowInput = function(raw) {
+        const value = clampFlowMultiplier(raw);
+        if (value === null) { sensorCalRerenderIfVisible(); return; } // snap the box back
+        sensorCalFlowSet(value);
+    };
+
+    function sensorCalFlowSet(candidate) {
+        const value = clampFlowMultiplier(candidate);
+        if (value === null || sensorCalFlow === null) return;
+        sensorCalFlow = value;
+        sensorCalFlowError = '';
+        sensorCalRerenderIfVisible();
+        clearTimeout(sensorCalFlowTimer);
+        sensorCalFlowTimer = setTimeout(sensorCalFlowFlush, SENSOR_CAL_FLOW_DEBOUNCE_MS);
+    }
+
+    // POST the settled value, then paint what the machine reports. One write
+    // in flight at a time; an edit made during it schedules another flush.
+    async function sensorCalFlowFlush() {
+        sensorCalFlowTimer = null;
+        if (sensorCalFlowBusy) {
+            sensorCalFlowTimer = setTimeout(sensorCalFlowFlush, SENSOR_CAL_FLOW_DEBOUNCE_MS);
+            return;
+        }
+        const sent = sensorCalFlow;
+        if (sent === null) return;
+        sensorCalFlowBusy = true;
+        try {
+            await setMachineCalibration(sent);
+            const reading = await getMachineCalibration();
+            const reported = clampFlowMultiplier(reading?.flowMultiplier);
+            // Keep an edit made while the write was in flight; it has its own flush.
+            if (sensorCalFlow === sent) sensorCalFlow = reported;
+        } catch (error) {
+            logger.error('Flow calibration write failed:', error);
+            sensorCalFlowError = error.message;
+            ui.showToast(`Calibration failed: ${error.message}`, 5000, 'error');
+        } finally {
+            sensorCalFlowBusy = false;
+            sensorCalRerenderIfVisible();
+        }
+    }
 
     // Clearing the error re-opens initSensorCal's re-entry gate, so the
     // re-render below performs exactly one fresh attempt.
     window.sensorCalRetryLoad = function() {
         sensorCalLoadError = '';
+        sensorCalFlowError = '';
         sensorCalRerender();
     };
 
@@ -8773,10 +9357,13 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
         if (captured === null || measured === null) return;
         const blocked = correctionBlocked(target.kind, captured, sensorCalToCelsius(id, measured));
         if (blocked) { entry.error = blocked; sensorCalRerender(); return; }
-        // Captured BEFORE the write: this is what Restore puts back.
-        const priorValue = entry.current;
         entry.busy = true; entry.error = ''; sensorCalRerender();
         try {
+            // Re-read the stored trim rather than trust the one from page load: it may have
+            // changed elsewhere since. This is what Restore puts back, so it must be the
+            // value the machine holds right now, captured BEFORE the write.
+            await sensorCalRead(id);
+            const priorValue = entry.current;
             await setSensorCalibration(id, captured, sensorCalToCelsius(id, measured));
             // The 202 is the BLE write ack, not a settled value — read it back
             // rather than paint the preview as fact.
@@ -9281,9 +9868,12 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
             ui.showToast('Skin set. Loading it now.', 6000, 'success');
             // The redirect lands on the port Decaid is serving *at that moment*,
             // and the webview only allows it once its own view has picked the new
-            // port up. Give it a beat: too early and the navigation is treated as
-            // an external link and opens in the system browser instead.
-            await new Promise(r => setTimeout(r, 1200));
+            // port up. Too early and the navigation is treated as an external link
+            // and opens in the system browser instead (#186). Nothing is exposed to
+            // the page to say the SkinView is ready, so this is a guess: 5 s, as
+            // asked for in #186, because 1.2 s lost on a slow tablet. The real fix
+            // is a readiness signal from Decaid (decaid#1108).
+            await new Promise(r => setTimeout(r, 5000));
             const enterSkin = () => window.location.assign(
                 `${window.location.protocol}//${window.location.hostname}:3000/?_=${Date.now()}`);
             enterSkin();
@@ -9408,31 +9998,14 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
         const input = document.getElementById('hotWaterFlowInput');
         if (input) {
             let newValue = parseFloat(input.value) + change;
-            newValue = Math.max(0.1, Math.min(8, newValue));
+            newValue = Math.max(SETTINGS_NUMPAD_CONFIGS.hotWaterFlowInput.min,
+                                Math.min(SETTINGS_NUMPAD_CONFIGS.hotWaterFlowInput.max, newValue));
             input.value = newValue.toFixed(1);
             input.dispatchEvent(new Event('change'));
         }
     };
 
-    window.adjustHotWaterTemp = function(change) {
-        const input = document.getElementById('hotWaterTempInput');
-        if (input) {
-            let newValue = parseInt(input.value, 10) + change;
-            newValue = Math.max(tempInputValue(50), Math.min(tempInputValue(95), newValue));
-            input.value = newValue;
-            input.dispatchEvent(new Event('change'));
-        }
-    };
 
-    window.adjustHotWaterVolume = function(change) {
-        const input = document.getElementById('hotWaterVolumeInput');
-        if (input) {
-            let newValue = parseInt(input.value, 10) + change;
-            newValue = Math.max(10, Math.min(500, newValue));
-            input.value = newValue;
-            input.dispatchEvent(new Event('change'));
-        }
-    };
 
     window.adjustHotWaterDuration = function(change) {
         const input = document.getElementById('hotWaterDurationInput');
@@ -9560,38 +10133,112 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
         }
     };
 
-    // 0 is off, 135-165 is the enabled range (rest_v1.yml SteamSettings), and
-    // nothing in between is a real setting -- Decaid reads anything under the
-    // range as off. So the buttons step between off and the bottom of the range
-    // instead of walking the user through 134 meaningless degrees. The floor
-    // used to be 135 with a label promising that "below 130" turned the heater
-    // off, which the buttons could not reach at all.
-    window.adjustSteamTemp = function(change) {
-        const input = document.getElementById('steamTempInput');
-        if (!input) return;
-        const off = tempInputValue(0);
-        const min = tempInputValue(135);
-        const current = parseInt(input.value, 10);
-        let newValue;
-        if (current <= off) {
-            newValue = change > 0 ? min : off;              // off -> bottom of range
+    // Heater switch for Settings > Calibration > Steam. Staged like the
+    // temperature input beside it (Save writes it, flushPendingChanges
+    // remembers enabled values) -- api.setSteamHeaterEnabled writes at once and
+    // would fight this page's Save model.
+    window.setSteamHeaterOn = function(on) {
+        const steam = settingsCache.workflow?.steamSettings ?? {};
+        if (on) {
+            // steamOnPatch clamps into the enabled band: re-arming to a
+            // remembered value below the floor would leave the heater off and
+            // the toggle fighting the user.
+            const patch = steamOnPatch({
+                remembered: {
+                    temp: lastEnabledSteamCalibTemp ?? (steam.targetTemperature > 0 ? steam.targetTemperature : null),
+                    duration: lastEnabledSteamDuration ?? (steam.duration > 0 ? steam.duration : null),
+                },
+                currentFlow: steam.flow,
+            });
+            for (const [field, value] of Object.entries(patch)) updateSteamSetting(field, value);
         } else {
-            newValue = current + change;
-            if (newValue < min) newValue = off;             // below the range -> off
-            else newValue = Math.min(tempInputValue(165), newValue);
+            if (steam.targetTemperature > 0) lastEnabledSteamCalibTemp = steam.targetTemperature;
+            if (steam.duration > 0) lastEnabledSteamDuration = steam.duration;
+            for (const [field, value] of Object.entries(steamOffPatch())) updateSteamSetting(field, value);
         }
-        input.value = newValue;
-        input.dispatchEvent(new Event('change'));
+        if (activeSettingsCategory) updateSettingsContentArea(activeSettingsCategory);
     };
 
-    window.adjustSteamDuration = function(change) {
-        const input = document.getElementById('steamDurationInput');
-        if (input) {
-            let newValue = parseInt(input.value, 10) + change;
-            newValue = Math.max(10, Math.min(120, newValue));
-            input.value = newValue;
-            input.dispatchEvent(new Event('change'));
+    // Off is one end of this control, not a separate switch: stepping below the
+    // enabled floor turns the heater off (and flips the master toggle, which
+    // renders from the same value), stepping up from off re-arms at the
+    // remembered temperature. Both directions go through setSteamHeaterOn so
+    // there is still a single writer for the off/on transition.
+    //
+    // Driven by the staged workflow value rather than by parsing the box,
+    // because while off the box shows the word "Off" and has no number in it.
+    //
+    // Steps are in DISPLAY units (one press = 1 °C or 1 °F); only the value
+    // written to the workflow is converted back to Celsius.
+    function steamTempC() {
+        return settingsCache.workflow?.steamSettings?.targetTemperature ?? 0;
+    }
+
+    window.adjustSteamTemp = function(change) {
+        if (steamTempC() < STEAM_ENABLED_MIN_TEMP) {
+            if (change > 0) window.setSteamHeaterOn(true);  // off -> remembered temperature
+            return;                                         // already off; stepping down is a no-op
         }
+        const nextDisplay = tempInputValue(steamTempC()) + change;
+        if (nextDisplay < tempInputValue(STEAM_ENABLED_MIN_TEMP)) {
+            window.setSteamHeaterOn(false);                 // stepped below the floor -> off
+            return;
+        }
+        const capped = Math.min(tempInputValue(STEAM_ENABLED_MAX_TEMP), nextDisplay);
+        updateSteamSetting('targetTemperature', Math.round(tempInputToCelsius(capped)));
+        if (activeSettingsCategory) updateSettingsContentArea(activeSettingsCategory);
+    };
+
+    // Typed or numpad entry. Anything below the enabled floor -- including 0 --
+    // is Off rather than a temperature, which is also what Decaid does with it.
+    window.setSteamTempFromInput = function(raw) {
+        const display = parseFloat(raw);
+        if (!Number.isFinite(display)) {
+            if (activeSettingsCategory) updateSettingsContentArea(activeSettingsCategory);
+            return;                                         // unparseable: repaint, change nothing
+        }
+        const celsius = Math.round(tempInputToCelsius(display));
+        if (celsius < STEAM_ENABLED_MIN_TEMP) { window.setSteamHeaterOn(false); return; }
+        updateSteamSetting('targetTemperature', Math.min(STEAM_ENABLED_MAX_TEMP, celsius));
+        if (activeSettingsCategory) updateSettingsContentArea(activeSettingsCategory);
+    };
+
+    // Staged value, not the box: at 0 the box reads "Off" and the input behind
+    // it is hidden (so it carries no change handler to round-trip through).
+    //
+    // Off is one end of this control as well as of the temperature: stepping
+    // below the shortest duration switches the heater off, and stepping up from
+    // Off re-arms at the remembered duration rather than at one step -- the
+    // user asked for steam back, not for one second of it.
+    window.adjustSteamDuration = function(change) {
+        const cfg = SETTINGS_NUMPAD_CONFIGS.steamDurationInput;
+        const previous = settingsCache.workflow?.steamSettings?.duration ?? 0;
+        if (previous === 0) {
+            if (change > 0) window.setSteamHeaterOn(true);
+            return;                                     // already off; stepping down is a no-op
+        }
+        const newValue = Math.max(cfg.min, Math.min(cfg.max, previous + change));
+        if (newValue < MIN_STEAM_DURATION_S) { window.setSteamHeaterOn(false); return; }
+        if (newValue === previous) return;
+        updateSteamSetting('duration', newValue);
+        const input = document.getElementById('steamDurationInput');
+        if (input) input.value = newValue;
+        if ((previous === 0) !== (newValue === 0) && activeSettingsCategory) {
+            updateSettingsContentArea(activeSettingsCategory);
+        }
+    };
+
+    // Typed or numpad entry. Anything below the shortest duration -- 0 and an
+    // empty box included -- is Off rather than a very short steam time.
+    window.setSteamDurationFromInput = function(raw) {
+        const intent = steamDurationIntent(raw);
+        if (!intent) {                                  // unparseable: repaint, change nothing
+            if (activeSettingsCategory) updateSettingsContentArea(activeSettingsCategory);
+            return;
+        }
+        if (intent.off) { window.setSteamHeaterOn(false); return; }
+        updateSteamSetting('duration', intent.duration);
+        if (activeSettingsCategory) updateSettingsContentArea(activeSettingsCategory);
     };
 
     window.adjustSteamFlow = function(change) {
@@ -9614,18 +10261,23 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
         }
     };
 
-    // Steam-stop mode toggle (Off | Time | Milk Temp). Stages stopAtTemperature and
+    // Steam-stop mode toggle (Time | Milk Temp). Stages stopAtTemperature and
     // re-renders so the correct dependent field (Duration or Milk target) is revealed.
     window.setEcoSteam = setEcoSteamEnabled;
+
+    // Why Milk Temp is greyed out, on demand instead of as standing copy.
+    window.explainSteamStopUnavailable = function() {
+        ui.showToast(getTranslation('Requires the Bengle milk temperature probe.'), 3000, 'info');
+    };
 
     window.setSteamStopMode = function(mode) {
         // Milk Temp is unofferable without the probe (button renders disabled —
         // this guard is belt-and-braces against a stale DOM).
         if (mode === 'temperature' && !getMilkProbe().present) return;
         // A hand-picked mode overrides any pending probe-loss restore, exactly
-        // like a tap on the main-page tile — without this, an Off/Time stop
-        // chosen here while the probe is away is auto-re-armed to Milk the
-        // moment the probe returns.
+        // like a tap on the main-page tile — without this, a Time stop chosen
+        // here while the probe is away is auto-re-armed to Milk the moment the
+        // probe returns.
         ui.clearMilkStopProbeRestore();
         try {
             localStorage.setItem('streamline.steamStopMode', mode);
@@ -9646,7 +10298,6 @@ export async function initializeSettings({ initialMainCategory = null, initialCa
 // Pages that ARE one plugin's settings UI, so that plugin's vocabulary belongs on
 // them specifically as well as on the Plugins list.
 const PLUGIN_BACKED_SUBCATEGORIES = {
-    extention1: 'visualizer.reaplugin',
     shotupload: 'shot-upload.reaplugin',
 };
 
@@ -9805,6 +10456,7 @@ function setupSettingsSearch(activateResult) {
 }
 
 export function cleanupSettings() {
+    unbindSettingsJump();
     stopCupWarmerPoll();
     clearTimeout(_settingsNumpadTimer);
     _settingsNumpadTimer = null;
@@ -9813,6 +10465,12 @@ export function cleanupSettings() {
     ledRestoreStrip();
     ledSeqReleaseManual();
     if (calWsClaimed) calReleaseScaleWs();
+    sensorCalStopLive();
+    // Same teardown as switching category: invalidate a pending import and
+    // stop the mounted maintenance page's poller/listeners.
+    maintenanceSequence += 1;
+    maintenanceCleanup?.();
+    maintenanceCleanup = null;
 }
 
 /**
@@ -9874,6 +10532,10 @@ function handleDisplayState(data) {
         }
         if (brightnessNumber) brightnessNumber.value = data.brightness;
     }
+    // A frame means the socket is open, so any queued write has been flushed.
+    brightnessWriteQueued = false;
+    const frameBrightness = data.brightness ?? data.requestedBrightness;
+    if (frameBrightness !== undefined) refreshBrightnessNotices(frameBrightness, data);
 
     // Update wake-lock toggle if it exists. wakeLockOverride (not
     // wakeLockEnabled) is REA's record of whether THIS APP asked for the
@@ -9918,6 +10580,8 @@ function renderDeviceListFromCache() {
         settingsCache.rea?.preferredMachineId || '', 'preferredMachineId');
     renderDeviceList('bluetooth-scale-devices-container', scales, 'Scale',
         settingsCache.rea?.preferredScaleId || '', 'preferredScaleId');
+    const connectedScale = scales.find(device => device.state === 'connected' && device.available !== false);
+    refreshScaleInfo(connectedScale?.id || null);
 }
 
 // Bluetooth Functions
@@ -9983,7 +10647,7 @@ async function renderManualWifiEndpoints() {
             <div class="flex items-center justify-between w-full bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] rounded-[10px] px-[16px] py-[12px]">
                 <span class="text-[24px] text-[var(--text-primary)] break-all">${safe}</span>
                 <button type="button" data-host="${safe}"
-                    class="wifi-scale-remove-btn text-[var(--mimoja-blue)] text-[24px] px-[12px] hover:text-white hover:bg-[var(--mimoja-blue)] rounded-[8px] transition-colors duration-200" data-i18n-key="Remove">
+                    class="wifi-scale-remove-btn text-[var(--mimoja-blue-v2)] text-[24px] px-[12px] hover:text-white hover:bg-[var(--button-primary-bg)] rounded-[8px] transition-colors duration-200" data-i18n-key="Remove">
                     Remove
                 </button>
             </div>`;
@@ -10045,39 +10709,32 @@ window.handleBrightnessChange = async function(value) {
         }
         if (number) number.value = brightnessValue;
 
-        sendDisplayCommand({
+        const sendResult = sendDisplayCommand({
             command: 'setBrightness',
             brightness: brightnessValue
         });
         // Deliberate user choice, so remember it: REA does not persist brightness
-        // (ReaSettings has no such field), and app.js replays this on boot.
+        // (ReaSettings has no such field), and app.js replays this on boot. A queued
+        // command is still sent on reconnect, so it is remembered either way.
         rememberBrightness(brightnessValue);
+        brightnessWriteQueued = sendResult === 'queued';
+        // The readout compares REA's own two fields; a local drag has no applied
+        // value yet, so hide it until the next display frame.
+        refreshBrightnessNotices(brightnessValue, null);
     } catch (error) {
         console.error('Error adjusting brightness:', error);
     }
 };
 
-window.handleBrightnessAutoToggle = async function(isEnabled) {
-    try {
-        const slider = document.getElementById('brightness-slider');
-        if (slider) {
-            slider.disabled = isEnabled;
-            slider.style.opacity = isEnabled ? '0.5' : '1';
-            slider.style.cursor = isEnabled ? 'not-allowed' : 'pointer';
-        }
-
-        if (isEnabled) {
-            logger.info('Auto brightness enabled');
-            // You can add logic here to request auto brightness from the display WebSocket
-        } else {
-            logger.info('Auto brightness disabled');
-        }
-    } catch (error) {
-        console.error('Error toggling auto brightness:', error);
-    }
+// Wake Lock handlers
+// Turning it on plays the click itself: the toggle is the only place where
+// "what does this sound like" is the question being asked, and the tap that
+// flipped it is the user gesture the AudioContext needs.
+window.handleTouchSoundToggle = function(enabled) {
+    try { localStorage.setItem(TOUCH_SOUND_KEY, enabled ? 'true' : 'false'); } catch (e) { /* private mode */ }
+    if (enabled) playTouchSound();
 };
 
-// Wake Lock handlers
 window.handleWakeLockToggle = async function(enabled) {
     try {
         if (enabled) {
@@ -10100,7 +10757,7 @@ window.handleWakeProfileToggle = function(enabled) {
     const row = document.getElementById('wake-profile-select-row');
     if (row) row.hidden = !enabled;
     if (enabled && !localStorage.getItem('wakeProfileId')) {
-        ui.showToast('Select a profile to load on wake', 3000, 'info');
+        ui.showToast(getTranslation('Select a profile to load on wake'), 3000, 'info');
     }
 };
 
@@ -10237,7 +10894,7 @@ export function renderBluetoothMachineSettings() {
                 <div class="w-[139px] shrink-0"></div>
                 <p class="flex-1 text-center font-['Inter:Semi_Bold',sans-serif] font-semibold not-italic text-[var(--text-primary)] text-[36px] leading-[1.2]" data-i18n-key="Espresso Machine">Espresso Machine</p>
                 <button id="scan-machine-btn"
-                        class="w-[139px] shrink-0 border-[var(--mimoja-blue)] text-[var(--mimoja-blue)] h-[62px] rounded-[67.5px] border text-[24px] transition-colors duration-200 hover:bg-[var(--mimoja-blue)] hover:text-white"
+                        class="w-[139px] shrink-0 border-[var(--mimoja-blue-v2)] text-[var(--mimoja-blue-v2)] h-[62px] rounded-[67.5px] border text-[24px] transition-colors duration-200 hover:bg-[var(--button-primary-bg)] hover:text-white"
                         onclick="window.scanForMachines()" data-i18n-key="Search">
                     Search
                 </button>
@@ -10245,12 +10902,12 @@ export function renderBluetoothMachineSettings() {
 
             <!-- Divider -->
             <div class="h-0 relative w-full">
-                <hr class="border-t border-[#c9c9c9] w-full" />
+                <hr class="border-t border-[var(--border-primary)] w-full" />
             </div>
 
             <!-- Connected Device -->
             <div class="flex flex-col gap-[20px] items-start relative w-full">
-                <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                     <p class="leading-[1.2]" data-i18n-key="Connected Device">Connected Device</p>
                 </div>
                 <div id="bluetooth-machine-devices-container" class="w-full">
@@ -10258,6 +10915,23 @@ export function renderBluetoothMachineSettings() {
                 </div>
             </div>
 
+        </div>
+    `;
+}
+
+function renderScalePopupToggle(title, description, enabled, inputAttributes) {
+    return `
+        <div class="flex items-center justify-between gap-[24px] py-[16px]">
+            <div class="flex flex-col gap-[6px]">
+                <p class="font-['Inter:Bold',sans-serif] font-bold text-[#385a92] text-[26px] leading-[1.2]" data-i18n-key="${title}">${escapeHtml(getTranslation(title))}</p>
+                <p class="font-['Inter:Regular',sans-serif] text-[var(--text-primary)] text-[20px] leading-[1.4]" data-i18n-key="${description}">${escapeHtml(getTranslation(description))}</p>
+            </div>
+            <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
+                <input type="checkbox" class="sr-only peer" aria-label="${escapeHtml(getTranslation(title))}" ${enabled ? 'checked' : ''}
+                       ${inputAttributes}>
+                <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
+            </label>
         </div>
     `;
 }
@@ -10280,17 +10954,17 @@ export function renderBluetoothScaleSettings(settings) {
                 <div class="w-[139px] shrink-0"></div>
                 <p class="flex-1 text-center font-['Inter:Semi_Bold',sans-serif] font-semibold not-italic text-[var(--text-primary)] text-[36px] leading-[1.2]" data-i18n-key="Scale">Scale</p>
                 <button id="scan-scale-btn"
-                        class="w-[139px] shrink-0 border-[var(--mimoja-blue)] text-[var(--mimoja-blue)] h-[62px] rounded-[67.5px] border text-[24px] transition-colors duration-200 hover:bg-[var(--mimoja-blue)] hover:text-white"
+                        class="w-[139px] shrink-0 border-[var(--mimoja-blue-v2)] text-[var(--mimoja-blue-v2)] h-[62px] rounded-[67.5px] border text-[24px] transition-colors duration-200 hover:bg-[var(--button-primary-bg)] hover:text-white"
                         onclick="window.scanForScales()" data-i18n-key="Search">
                     Search
                 </button>
             </div>
 
-            <hr class="border-t border-[#c9c9c9] w-full" />
+            <hr class="border-t border-[var(--border-primary)] w-full" />
 
             <!-- Connected Device -->
             <div class="flex flex-col gap-[16px] items-start relative w-full">
-                <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[30px]">
+                <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[30px]">
                     <p class="leading-[1.2]" data-i18n-key="Connected Device">Connected Device</p>
                 </div>
                 <div id="bluetooth-scale-devices-container" class="w-full">
@@ -10298,31 +10972,31 @@ export function renderBluetoothScaleSettings(settings) {
                 </div>
             </div>
 
-            <hr class="border-t border-[#c9c9c9] w-full" />
+            <hr class="border-t border-[var(--border-primary)] w-full" />
 
             <!-- Scale Power Mode -->
             <div class="flex flex-col gap-[16px] items-start relative w-full">
                 <div class="flex items-baseline gap-[14px] w-full">
-                    <p id="scale-power-management-label" class="font-['Inter:Bold',sans-serif] font-bold not-italic text-[#385a92] text-[30px] leading-[1.2] shrink-0" data-i18n-key="Scale Power Mode">Scale Power Mode</p>
+                    <p id="scale-power-management-label" class="font-['Inter:Bold',sans-serif] font-bold not-italic text-[var(--mimoja-blue-v2)] text-[30px] leading-[1.2] shrink-0" data-i18n-key="Scale Power Mode">Scale Power Mode</p>
                     <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic text-[var(--text-primary)] text-[24px] break-words" data-i18n-key="Controls scale behaviour when machine sleeps.">
                         Controls scale behaviour when machine sleeps.
                     </p>
                 </div>
                 <div class="flex items-center gap-[8px]" role="group" aria-labelledby="scale-power-management-label">
                     <button class="h-[100px] w-[280px] rounded-[10px] font-['Inter:Bold',sans-serif] font-bold text-[28px] flex items-center justify-center cursor-pointer transition-colors duration-200
-                        ${scalePowerMode === 'disabled' ? 'bg-[var(--mimoja-blue)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
+                        ${scalePowerMode === 'disabled' ? 'bg-[var(--button-primary-bg)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
                         aria-pressed="${scalePowerMode === 'disabled'}"
                         onclick="window.updateReaSetting('scalePowerMode', 'disabled')" data-i18n-key="Nothing">
                         Nothing
                     </button>
                     <button class="h-[100px] w-[280px] rounded-[10px] font-['Inter:Bold',sans-serif] font-bold text-[28px] flex items-center justify-center cursor-pointer transition-colors duration-200
-                        ${scalePowerMode === 'displayOff' ? 'bg-[var(--mimoja-blue)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
+                        ${scalePowerMode === 'displayOff' ? 'bg-[var(--button-primary-bg)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
                         aria-pressed="${scalePowerMode === 'displayOff'}"
                         onclick="window.updateReaSetting('scalePowerMode', 'displayOff')" data-i18n-key="Display Off">
                         Display Off
                     </button>
                     <button class="h-[100px] w-[280px] rounded-[10px] font-['Inter:Bold',sans-serif] font-bold text-[28px] flex items-center justify-center cursor-pointer transition-colors duration-200
-                        ${scalePowerMode === 'disconnect' ? 'bg-[var(--mimoja-blue)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
+                        ${scalePowerMode === 'disconnect' ? 'bg-[var(--button-primary-bg)] text-white' : 'bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[#b6c3d7]'}"
                         aria-pressed="${scalePowerMode === 'disconnect'}"
                         onclick="window.updateReaSetting('scalePowerMode', 'disconnect')" data-i18n-key="Disconnect">
                         Disconnect
@@ -10330,19 +11004,19 @@ export function renderBluetoothScaleSettings(settings) {
                 </div>
             </div>
 
-            <hr class="border-t border-[#c9c9c9] w-full" />
+            <hr class="border-t border-[var(--border-primary)] w-full" />
 
             <!-- Block Shot on No Scale -->
             <div class="flex items-center justify-between w-full">
                 <div class="flex items-baseline gap-[14px]">
-                    <p class="font-['Inter:Bold',sans-serif] font-bold not-italic text-[#385a92] text-[30px] leading-[1.2] shrink-0">Scale Required</p>
+                    <p class="font-['Inter:Bold',sans-serif] font-bold not-italic text-[var(--mimoja-blue-v2)] text-[30px] leading-[1.2] shrink-0">Scale Required</p>
                     <p class="font-['Inter:Regular',sans-serif] font-normal leading-[1.4] not-italic text-[var(--text-primary)] text-[24px]" data-i18n-key="Prevent shots from starting when no scale is connected.">
                         Prevent shots from starting when no scale is connected.
                     </p>
                 </div>
                 <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[100px] h-[50px]">
                     <input type="checkbox" id="block-on-no-scale-toggle" class="sr-only peer" ${blockOnNoScale ? 'checked' : ''} onchange="window.updateReaSetting('blockOnNoScale', this.checked, false)">
-                    <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                    <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                     <div class="absolute top-1/2 left-[5px] -translate-y-1/2 peer-checked:translate-x-[46px] size-[40px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
                 </label>
             </div>
@@ -10351,7 +11025,7 @@ export function renderBluetoothScaleSettings(settings) {
                  opens a dialog. Most WiFi scales are auto-discovered. -->
             <div class="w-full flex justify-center pt-[8px]">
                 <button onclick="window.openWifiScaleModal()"
-                        class="text-[#959595] hover:text-[var(--mimoja-blue)] text-[20px] underline underline-offset-4 transition-colors duration-200">
+                        class="text-[#959595] hover:text-[var(--mimoja-blue-v2)] text-[20px] underline underline-offset-4 transition-colors duration-200">
                     Add WiFi scale manually
                 </button>
             </div>
@@ -10367,7 +11041,7 @@ export function renderBluetoothScaleSettings(settings) {
                             placeholder="192.168.1.42 or hds.local"
                             class="flex-1 h-[62px] rounded-[10px] px-[16px] text-[24px] bg-[var(--box-color)] border border-[var(--profile-button-outline-color)] text-[var(--text-primary)]"
                             onkeydown="if(event.key==='Enter'){event.preventDefault();window.addWifiScaleFromInput();}" />
-                        <button class="border-[var(--mimoja-blue)] text-[var(--mimoja-blue)] h-[62px] rounded-[67.5px] border px-[32px] text-[24px] transition-colors duration-200 hover:bg-[var(--mimoja-blue)] hover:text-white"
+                        <button class="border-[var(--mimoja-blue-v2)] text-[var(--mimoja-blue-v2)] h-[62px] rounded-[67.5px] border px-[32px] text-[24px] transition-colors duration-200 hover:bg-[var(--button-primary-bg)] hover:text-white"
                             onclick="window.addWifiScaleFromInput()">
                             Add
                         </button>
@@ -10377,6 +11051,16 @@ export function renderBluetoothScaleSettings(settings) {
                     </div>
                     <div class="modal-action">
                         <button class="btn" onclick="document.getElementById('wifi-scale-modal').close()">Close</button>
+                    </div>
+                </div>
+            </dialog>
+
+            <dialog id="scale-device-settings-modal" class="modal" aria-labelledby="scale-device-settings-title">
+                <div class="modal-box bg-[var(--box-color)] max-w-2xl">
+                    <h3 id="scale-device-settings-title" class="font-bold text-[28px] text-[var(--text-primary)] mb-2"></h3>
+                    <div id="scale-device-settings-content"></div>
+                    <div class="modal-action">
+                        <button class="btn" onclick="document.getElementById('scale-device-settings-modal').close()" data-i18n-key="Close">${escapeHtml(getTranslation('Close'))}</button>
                     </div>
                 </div>
             </dialog>
@@ -10436,9 +11120,37 @@ function renderSingleDeviceList(devices, preferredId = '', settingKey = '', type
         const isUnavailable = device.available === false;
         const isConnected = !isUnavailable && device.state === 'connected';
         const isPreferred = preferredId && device.id === preferredId;
+        const deviceInfo = type === 'Scale' && isConnected
+            ? (scaleInfoByDeviceId.get(device.id) || {})
+            : {};
+        const usbPowered = type === 'Scale' && isConnected &&
+            getScaleDeviceSetting(
+                settingsCache.rea,
+                'skalePoweredByUsbByDevice',
+                device.id,
+            ) === true;
+        const usbPowerPending = type === 'Scale' && isConnected &&
+            Object.prototype.hasOwnProperty.call(pendingChanges.rea, 'skalePoweredByUsbByDevice') &&
+            pendingChanges.rea.skalePoweredByUsbByDevice?.[device.id] === true;
         const safeId = (device.id || '').replace(/'/g, "\\'");
         const safeName = (device.name || '').replace(/'/g, "\\'");
         const safeSettingKey = settingKey.replace(/'/g, "\\'");
+        const firmware = deviceInfo.firmwareVersion
+            ? `<span class="text-[18px] text-[var(--text-primary)] opacity-60"><span data-i18n-key="Firmware">${getTranslation('Firmware')}</span> ${escapeHtml(deviceInfo.firmwareVersion)}</span>`
+            : '';
+        const liveBattery = type === 'Scale' && isConnected &&
+            typeof window.getLatestScaleBattery === 'function'
+            ? window.getLatestScaleBattery()
+            : undefined;
+        const batteryLevel = !usbPowered && Number.isFinite(liveBattery)
+            ? liveBattery
+            : (!usbPowered && Number.isFinite(deviceInfo.batteryLevel) ? deviceInfo.batteryLevel : null);
+        const batteryBadge = batteryLevel !== null && batteryLevel !== undefined
+            ? renderBatteryBadge(batteryLevel)
+            : '';
+        const usbBadge = usbPowered
+            ? `<span class="text-[20px] font-bold px-[16px] py-[6px] rounded-full bg-[var(--button-primary-bg)] text-white" data-i18n-key="${usbPowerPending ? 'USB (pending)' : 'USB'}">${usbPowerPending ? 'USB (pending)' : 'USB'}</span>`
+            : '';
 
         const dotClass = isConnected ? 'bg-green-500'
             : isUnavailable ? 'bg-amber-500/40'
@@ -10448,7 +11160,7 @@ function renderSingleDeviceList(devices, preferredId = '', settingKey = '', type
             ? '<span class="text-[20px] font-bold px-[16px] py-[6px] rounded-full bg-green-500/15 text-green-600" data-i18n-key="Connected">Connected</span>'
             : isUnavailable
             ? '<span class="text-[20px] font-bold px-[16px] py-[6px] rounded-full bg-amber-500/15 text-amber-600">Unavailable</span>'
-            : '<span class="text-[20px] font-bold px-[16px] py-[6px] rounded-full bg-[var(--profile-button-outline-color)]/30 text-[var(--text-primary)] opacity-50" data-i18n-key="Available">Available</span>';
+            : '<span class="text-[20px] font-bold px-[16px] py-[6px] rounded-full bg-[var(--muted-pill-bg)] text-[var(--text-primary)] opacity-50" data-i18n-key="Available">Available</span>';
 
         let actions;
         if (isUnavailable) {
@@ -10456,7 +11168,7 @@ function renderSingleDeviceList(devices, preferredId = '', settingKey = '', type
             // discovery — not a direct connect, which would fail with no
             // transport). Forget removes it from the remembered registry.
             actions = `
-                <button class="border-2 border-[#385a92] text-[#385a92] hover:bg-[#385a92] hover:text-white h-[62px] px-[28px] rounded-[67.5px] text-[22px] font-bold transition-colors duration-200"
+                <button class="border-2 border-[var(--mimoja-blue-v2)] text-[var(--mimoja-blue-v2)] hover:bg-[var(--button-primary-bg)] hover:text-white h-[62px] px-[28px] rounded-[67.5px] text-[22px] font-bold transition-colors duration-200"
                         onclick="window.handleDeviceRescan()" data-i18n-key="Reconnect">Reconnect</button>
                 <button class="border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white h-[62px] px-[28px] rounded-[67.5px] text-[22px] font-bold transition-colors duration-200"
                         onclick="window.handleForgetDevice('${safeId}', '${safeName}')">Forget</button>`;
@@ -10464,7 +11176,7 @@ function renderSingleDeviceList(devices, preferredId = '', settingKey = '', type
             const buttonText = isConnected ? 'Disconnect' : 'Connect';
             const buttonAction = isConnected ? 'disconnect' : 'connect';
             actions = `
-                <button class="${isConnected ? 'border-2 border-[#385a92] text-[#385a92] hover:bg-[#385a92] hover:text-white' : 'bg-[#385a92] text-white hover:bg-[#2c4a7a]'} h-[62px] px-[32px] rounded-[67.5px] text-[22px] font-bold transition-colors duration-200"
+                <button class="${isConnected ? 'border-2 border-[var(--mimoja-blue-v2)] text-[var(--mimoja-blue-v2)] hover:bg-[var(--button-primary-bg)] hover:text-white' : 'bg-[var(--button-primary-bg)] text-white hover:bg-[#2c4a7a]'} h-[62px] px-[32px] rounded-[67.5px] text-[22px] font-bold transition-colors duration-200"
                         onclick="window.handleDeviceConnection('${safeId}', '${buttonAction}')" data-i18n-key="${buttonText}">${buttonText}</button>`;
         }
 
@@ -10479,27 +11191,30 @@ function renderSingleDeviceList(devices, preferredId = '', settingKey = '', type
                     <div class="flex flex-col gap-[4px] min-w-0">
                         <span class="text-[26px] font-bold text-[var(--text-primary)] truncate leading-tight">${device.name}</span>
                         <span class="text-[18px] text-[var(--text-primary)] opacity-40 font-mono truncate">${device.id || 'N/A'}</span>
+                        ${firmware}
                     </div>
                 </div>
                 <div class="flex items-center gap-[20px] flex-shrink-0 ml-[24px]">
-                    ${(() => {
-                        if (type === 'Scale' && isConnected) {
-                            const batt = window.getLatestScaleBattery?.();
-                            return batt !== null && batt !== undefined ? renderBatteryBadge(batt) : '';
-                        }
-                        return '';
-                    })()}
+                    ${batteryBadge}
+                    ${usbBadge}
                     ${settingKey ? `
                     <div class="flex flex-col items-center gap-[4px]">
                         <span class="text-[16px] text-[var(--text-primary)] opacity-50" data-i18n-key="Preferred">Preferred</span>
                         <label class="relative flex items-center cursor-pointer flex-shrink-0 w-[72px] h-[36px]">
                             <input type="checkbox" class="sr-only peer"
+                                   aria-label="${escapeHtml(getTranslation('Preferred'))}"
                                    ${isPreferred ? 'checked' : ''}
                                    onchange="window.setPreferredDevice('${safeSettingKey}', '${safeId}', this.checked)">
-                            <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[#385a92] peer-checked:border-[#385a92]"></div>
+                            <div class="absolute inset-0 rounded-full border-2 transition-colors duration-200 bg-[var(--toggle-off-bg)] border-[var(--toggle-off-border)] peer-checked:bg-[var(--button-primary-bg)] peer-checked:border-[var(--button-primary-bg)]"></div>
                             <div class="absolute top-1/2 left-[4px] -translate-y-1/2 peer-checked:translate-x-[36px] size-[28px] rounded-full transition-[transform,background-color] duration-200 bg-[var(--toggle-off-knob)] peer-checked:bg-white"></div>
                         </label>
                     </div>
+                    ` : ''}
+                    ${type === 'Scale' && hasSkaleUsbSetting(settingsCache.rea, device) ? `
+                    <button aria-label="${escapeHtml(getTranslation('Settings'))}: ${escapeHtml(device.name)}"
+                            data-device-id="${escapeHtml(device.id || '')}"
+                            class="border-2 border-[#385a92] text-[#385a92] hover:bg-[#385a92] hover:text-white h-[62px] px-[24px] rounded-[67.5px] text-[22px] font-bold transition-colors duration-200"
+                            onclick="window.openScaleDeviceSettings(this.dataset.deviceId)" data-i18n-key="Settings">${escapeHtml(getTranslation('Settings'))}</button>
                     ` : ''}
                     ${badge}
                     ${actions}
@@ -10511,7 +11226,37 @@ function renderSingleDeviceList(devices, preferredId = '', settingKey = '', type
     return deviceItems;
 }
 
+window.openScaleDeviceSettings = function(deviceId) {
+    const device = deviceStateCache.devices.find(item => item.id === deviceId);
+    const settings = settingsCache.rea || {};
+    if (!hasSkaleUsbSetting(settings, device)) return;
+    const modal = document.getElementById('scale-device-settings-modal');
+    const title = document.getElementById('scale-device-settings-title');
+    const content = document.getElementById('scale-device-settings-content');
+    if (!modal || !title || !content) return;
 
+    title.textContent = `${getTranslation('Settings')}: ${device.name}`;
+    content.innerHTML = renderScalePopupToggle(
+        'Skale USB Power',
+        'Declare USB power manually and hide the battery level.',
+        getScaleDeviceSetting(settings, 'skalePoweredByUsbByDevice', deviceId) === true,
+        `data-device-id="${escapeHtml(deviceId)}"
+         onchange="window.updateScaleDeviceSetting(this.dataset.deviceId, this.checked)"`,
+    );
+    translatePage();
+    modal.showModal();
+};
+
+window.updateScaleDeviceSetting = function(deviceId, enabled) {
+    const device = deviceStateCache.devices.find(item => item.id === deviceId);
+    if (!hasSkaleUsbSetting(settingsCache.rea, device)) return;
+    const key = 'skalePoweredByUsbByDevice';
+    const values = { ...settingsCache.rea[key] };
+    if (enabled) values[deviceId] = true;
+    else delete values[deviceId];
+    updateReaSetting(key, values, false);
+    renderDeviceListFromCache();
+};
 
 
 // Function to handle connecting or disconnecting a device
@@ -10668,13 +11413,13 @@ export function renderKeyboardShortcutsSettings() {
         const currentKey = saved[state] ?? defaultKey;
         return `
             <div class="content-stretch flex items-center justify-between relative w-full py-[10px] border-b border-[var(--box-color)]">
-                <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[#385a92] text-[28px]">
+                <div class="flex flex-col font-['Inter:Bold',sans-serif] font-bold justify-center leading-[0] not-italic relative text-[var(--mimoja-blue-v2)] text-[28px]">
                     <p class="leading-[1.2]">${getTranslation(label)}</p>
                 </div>
                 <div class="flex items-center gap-[20px]">
                     <span id="kb-current-${state}" class="font-['Inter:Regular',sans-serif] font-normal text-[var(--text-primary)] text-[24px] w-[80px] text-center">${keyDisplayName(currentKey)}</span>
                     <button id="kb-btn-${state}" onclick="window.startKeyRebind('${state}')"
-                        class="bg-[#385a92] rounded-[10px] px-[20px] h-[52px] text-white text-[22px] font-bold min-w-[140px]" data-i18n-key="Rebind">
+                        class="bg-[var(--button-primary-bg)] rounded-[10px] px-[20px] h-[52px] text-white text-[22px] font-bold min-w-[140px]" data-i18n-key="Rebind">
                         Rebind
                     </button>
                 </div>
@@ -10693,7 +11438,7 @@ export function renderKeyboardShortcutsSettings() {
                 ${rows}
             </div>
             <button onclick="window.resetKeyboardBindings()"
-                class="border border-[#385a92] rounded-[10px] px-[30px] h-[52px] text-[#385a92] text-[22px] font-bold">
+                class="border border-[var(--mimoja-blue-v2)] rounded-[10px] px-[30px] h-[52px] text-[var(--mimoja-blue-v2)] text-[22px] font-bold">
                 ${getTranslation('Reset to default')}
             </button>
         </div>`;
@@ -10777,11 +11522,11 @@ function haBlockHtml(id, title, yaml) {
             <div class="flex items-center justify-between w-full">
                 <span class="font-['Inter:Semi_Bold',sans-serif] font-semibold text-[26px] text-[var(--text-primary)]">${title}</span>
                 <button onclick="window.haCopyYaml('${id}', this)"
-                        class="text-[20px] font-semibold text-[#385a92] px-4 py-1 rounded-[8px] border border-[#385a92] hover:bg-[#385a92] hover:text-white transition-colors">
+                        class="text-[20px] font-semibold text-[var(--mimoja-blue-v2)] px-4 py-1 rounded-[8px] border border-[var(--mimoja-blue-v2)] hover:bg-[var(--button-primary-bg)] hover:text-white transition-colors">
                     ${getTranslation('Copy')}
                 </button>
             </div>
-            <pre id="${id}" class="w-full overflow-x-auto rounded-[10px] border border-[#c9c9c9] bg-[var(--box-color)] p-4 text-[18px] leading-[1.4] text-[var(--text-primary)] whitespace-pre">${escapeHtml(yaml)}</pre>
+            <pre id="${id}" class="w-full overflow-x-auto rounded-[10px] border border-[var(--border-primary)] bg-[var(--box-color)] p-4 text-[18px] leading-[1.4] text-[var(--text-primary)] whitespace-pre">${escapeHtml(yaml)}</pre>
         </div>`;
 }
 
@@ -10805,7 +11550,7 @@ export function renderHomeAssistantSettings() {
                 </span>
                 <input id="haHostInput" type="text" value="${escapeHtml(host)}" placeholder="192.168.1.50"
                        oninput="window.haSetHost(this.value)"
-                       class="flex-1 rounded-[10px] border border-[#c9c9c9] bg-[var(--box-color)] px-4 h-[52px] text-[24px] text-[var(--text-primary)]" />
+                       class="flex-1 rounded-[10px] border border-[var(--border-primary)] bg-[var(--box-color)] px-4 h-[52px] text-[24px] text-[var(--text-primary)]" />
                 <span class="font-['Inter:Regular',sans-serif] text-[24px] text-[var(--text-primary)]">:${port}</span>
             </div>
             <p class="font-['Inter:Regular',sans-serif] leading-[1.4] text-[var(--text-primary)] text-[20px] w-full opacity-70">

@@ -49,10 +49,10 @@ const CATEGORY_IMPORTS = [
 export const FILES = [
   // ── modules vendored as-is ────────────────────────────────────────────────
   ...["eco-steam", "units", "machine", "steam-mode", "firmware-progress", "led-color",
-      "cup-warmer", "loadcell-cal", "sensor-cal", "settings-search", "home-assistant",
+      "cup-warmer", "loadcell-cal", "sensor-cal", "home-assistant",
       "logger", "screensaver-policy", "idb", "numpad-policy",
       "maintenance-progress", "i18n-parser", "socket-slot",
-      "visualizer", "settingsSync", "profile-overrides"]
+      "settingsSync", "profile-overrides"]
     .map((m) => ({ from: `modules/${m}.js`, to: `src/app/modules/${m}.js` })),
 
   // notes-modal.js loads its stylesheet from a skin-relative path; the plugin serves it
@@ -67,11 +67,51 @@ export const FILES = [
   // same commits, so a release older than that legitimately has neither the
   // modules nor the imports. `optional` keeps a genuine removal a hard error.
   ...["led-sequence", "led-strip-runner", "calibrated-steam", "auto-steam-capability",
-      "auto-steam-flow", "auto-steam-safety", "auto-steam-session", "derek-stream"].map((m) => ({
+      "auto-steam-flow", "auto-steam-safety", "auto-steam-session", "derek-stream",
+      // Removed from the skin in v0.2.18; optional so the stale copy is cleaned up.
+      "visualizer",
+      // Added to the skin after v0.2.12.
+      "resync-policy", "workflow-fields", "dye-selection", "saver-brightness", "text-fit",
+      "keyboard-fit", "profile-send-gate", "perf-probe", "brightness-notice", "wake-profile",
+      "screensaver-clock", "skin-version", "plugin-surfaces", "grinder-sync"].map((m) => ({
     from: `modules/${m}.js`,
     to: `src/app/modules/${m}.js`,
     optional: true,
   })),
+
+  // The plugin has no static-asset route for binaries, so the click is inlined.
+  {
+    from: "modules/touch-sound.js",
+    to: "src/app/modules/touch-sound.js",
+    optional: true,
+    inlineAsset: { url: "src/sounds/KeypressStandard_120.ogg", mime: "audio/ogg" },
+  },
+
+  // Upstream's settings/ directory is flattened into src/app/ by the port.
+  {
+    from: "modules/settings-search.js",
+    to: "src/app/modules/settings-search.js",
+    patches: [{ optional: true, why: "settings-search.js does not import plugin-view in this revision",
+                patch: [`'../settings/plugin-view.js'`, `'../plugin-view.js'`] }],
+  },
+  {
+    from: "modules/plugin-overlay.js",
+    to: "src/app/modules/plugin-overlay.js",
+    optional: true,
+    patches: [{ all: ["'../settings/plugin-view.js'", "'../plugin-view.js'"] }],
+  },
+  {
+    from: "modules/grinder-runtime.js",
+    to: "src/app/modules/grinder-runtime.js",
+    optional: true,
+    patches: [["from './ui.js'", "from './ui-lite.js'"]],
+  },
+  {
+    from: "settings/categories/connections.js",
+    to: "src/app/categories/connections.js",
+    optional: true,
+    patches: CATEGORY_IMPORTS,
+  },
 
   { from: "version.js", to: "src/app/version.js" },
 
@@ -192,7 +232,7 @@ export { API_BASE_URL };`],
   // ── settings chrome ───────────────────────────────────────────────────────
   { from: "settings/settings-tree.js", to: "src/app/settings-tree.js" },
   // Added after v0.1.110, imported by a newer settings.js; see the optional modules above.
-  ...["plugin-view", "settings-restore"].map((m) => ({
+  ...["plugin-view", "settings-restore", "scale-device-details", "feedback-report"].map((m) => ({
     from: `settings/${m}.js`,
     to: `src/app/${m}.js`,
     optional: true,
@@ -502,6 +542,17 @@ for (const file of isMain ? FILES : []) {
   // src/vendor/ are served byte-for-byte: a comment prepended to a CSV is
   // corruption, and `//` is not a CSS comment.
   else if (file.to.startsWith("src/app/")) text = banner(file.from) + text;
+
+  if (file.inlineAsset) {
+    const { url, mime } = file.inlineAsset;
+    if (!text.includes(`'${url}'`)) {
+      console.error(`  PATCH FAILED      ${file.to}: no asset path ${url}`);
+      failed++;
+    } else {
+      const bytes = readFileSync(resolve(UPSTREAM_DIR, "..", url));
+      text = text.split(`'${url}'`).join(`'data:${mime};base64,${bytes.toString("base64")}'`);
+    }
+  }
 
   if (file.inlineFont) {
     const { url, file: fontFile, mime } = file.inlineFont;
